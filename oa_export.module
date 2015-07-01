@@ -1,0 +1,228 @@
+<?php
+
+require_once('oa_export.file.inc');
+require_once('oa_export.form.export.inc');
+require_once('oa_export.form.import.inc');
+require_once('oa_export.formats.inc');
+require_once('oa_export.theme.inc');
+require_once('oa_export.paragraphs.import.inc');
+
+function oa_export_menu() {
+  return array(
+    'admin/openatrium/blueprint-export-import' => array(
+      'title' => 'Blueprint Export/Import',
+      'description' => 'Export and Import space blueprints',
+      'weight' => 0,
+      'access callback' => 'user_access',
+      'access arguments' => array('export blueprint'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('oa_export_blueprints_form'),
+    ),
+    'blueprint/export/%taxonomy_term' => array(
+      'title' => t('Export Space Blueprint'),
+      'access callback' => 'user_access',
+      'access arguments' => array('export blueprint'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('oa_export_blueprint_export_form', 2),
+    ),
+    'blueprint/import' => array(
+      'title' => t('Import Blueprint'),
+      'access callback' => 'user_access',
+      'access arguments' => array('import blueprint'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('oa_export_blueprint_import_form', 1),
+      'type' => MENU_LOCAL_ACTION,
+    ),
+    'oa_export/download' => array(
+      'title' => t('Download Blueprint'),
+      'access callback' => 'user_access',
+      'access arguments' => array('export blueprint'),
+      'page callback' => 'oa_export_batch_export_finished_redirect',
+    ),
+  );
+}
+
+function oa_export_permission() {
+  return array(
+    'export blueprint' => array(
+      'title' => t('Blueprint Export'),
+      'description' => t('This role will be allowed to export blueprints.'),
+    ),
+    'import blueprint' => array(
+      'title' => t('Blueprint Import'),
+      'description' => t('This role will be allowed to import blueprints.'),
+    ),
+  );
+}
+
+function oa_export_menu_local_tasks_alter(&$data, $router_item, $root_path) {
+  if ($_GET['q'] === 'admin/structure/taxonomy/space_type') {
+    $item = menu_get_item('blueprint/import');
+    $data['actions']['output'][] = array(
+      '#theme' => 'menu_local_action',
+      '#link' => $item,
+    );
+  }
+}
+
+function oa_export_module_implements_alter(&$implementations, $hook) {
+
+  if ($hook == 'clone_node_alter') {
+    $group = $implementations ['oa_export'];
+    unset($implementations ['oa_export']);
+    $implementations ['oa_export'] = $group;
+  }
+}
+
+function oa_export_exception($e) {
+  drupal_set_message(t('Error: %message', array('%message' => $e->getMessage())));
+}
+
+/**
+ * This imports data associated with an entity once the entity has been saved.
+ * This can include: comments, paragraphs, etc.
+ *
+ * @param array $import
+ * @param array $context
+ * @param $imported_node
+ *  The new node that was just imported
+ * @param $original_node
+ *  The original node we exported before cloning it.
+ * @throws Exception
+ */
+function oa_export_import_entity_data($import, $imported_node, $original_node) {
+
+  /** We need to import paragraphs on the entity. */
+
+  oa_export_import_paragraph_items($import, $imported_node, $original_node, 'node');
+
+  /** We need to import comments and import paragraphs on comments as well. */
+
+  // Check for exported comments.
+  if (isset($import['comments'])) {
+
+//    foreach ($import['comments'] as $target => $comment) {
+//      $wrapper = entity_metadata_wrapper('comment', $comment['entity'], array('bundle' => 'comment'));
+//      $info = $wrapper->entityInfo();
+//    }
+    // Import the comments for the saved node.
+    $imported_comments = oa_export_import_save_comments($import['comments'], $imported_node->nid);
+
+    // Now we need to check for paragraph items on the comments.
+    foreach ($imported_comments as $old_cid => $comment) {
+//      list(,$old_cid) = explode(':', $target);
+
+      $new_comment = comment_load($comment);
+
+      oa_export_import_paragraph_items($import['comments']['comment:' . $old_cid], $new_comment, $import['comments']['comment:' . $old_cid]['entity'], 'comment');
+    }
+
+  }
+
+  // Save the node again with the new data that has been added.
+  node_save($imported_node);
+
+//  // Fields on the original node.
+//  $fields = field_info_instances('node', $original_node->type);
+//
+//  // Iterate over the fields to find paragraphs fields.
+//  foreach ($fields as $field_name => $field) {
+//
+//    // Right now field_oa_related is the only field we using for paragraphs so
+//    // we could save some cycles here by hard coding that field but this is
+//    // better if we ever add any other paragraphs fields.
+//    $info = field_info_field($field['field_name']);
+//
+//    // This will find fields like field_oa_related that are 'paragraphs' type
+//    // and make sure the field exists in the node.
+//    if ($info['type'] == 'paragraphs' && isset($imported_node->$field_name)) {
+//      // We use the original node here because paragraphs_clone_items()
+//      // unset the paragraph field, in this case (field_oa_related).
+//      $language = $original_node->language;
+//
+//      // Iterate over 'paragraphs' fields that exist in the node we are
+//      // importing and pass them individually to one of the helper
+//      // functions that either clones it instantly or stores it
+//      // for later when the node that is needed has been imported already.
+//      foreach ($original_node->{$field_name}[$language] as $delta => $item) {
+//
+//        // The exported paragraph we will target. The paragraph is stored by
+//        // [entity_type:item_id:nid].
+//        $paragraph = $import['paragraphs']['paragraphs_item:' . $item['value'] . $original_node->nid];
+//
+//          // Just seeing what we have access to here that may be used to help
+//          // define a more generic way to handle this.
+//          $wrapper = entity_metadata_wrapper('paragraphs_item', NULL, array('bundle' => $paragraph->bundle));
+//          $info = $wrapper->entityInfo();
+//
+////          oa_export_clone_import_paragraph_item($import, $context, $paragraph[$item['value']], 'node', $imported_node, $field_name, $language);
+//
+//          // Information passed to alter functions. May not need all this, just
+//          // adding for now and will minimize later.
+//          $data = array(
+//            'import' => $import,
+//            'context' => $context,
+//            'paragraph' => $paragraph,
+//            'item_id' => $item['value'],
+//            'entity_type' => 'node',
+//            'field_name' => $field_name,
+//            'language' => $language,
+//          );
+//
+//          // Allows custom import functions keyed on paragraph bundle to update
+//          // the node that is being imported.
+//          drupal_alter('oa_export_import_' . $paragraph['bundle'], $imported_node, $data);
+//
+//        // Do we need to write a query here that will check to see if the master content
+//        // that the paragraph relates to has been imported yet. Not sure how we
+//        // will know what the new nid is of the content we would need to search
+//        // for is though?? Should be able to just do a node_load($new_nid) to check.
+//
+//      }
+//    }
+//  }
+
+}
+
+/**
+ * This looks for stored import data for a node. For example, while
+ * creating the space there might have been a paragraph_content item that
+ * relates to this section. Now that the section is imported we can safely
+ * create the paragraph item that relates to this section.
+ *
+ * @param array $import
+ *   Contains the full import.
+ * @param string $key
+ *   The key that denotes where to look for stored data in the import array.
+ * @param array $vars
+ *   Extra vars that may need to passed in.
+ */
+function oa_export_import_stored_data($import, &$context, $key, $vars) {
+
+  // Check for data that was stored during importing a previous entity.
+  if (isset($import['storage']) && !empty($import['storage'])) {
+    foreach ($import['storage'][$key] as $k => $v) {
+      list($name, $id) = explode(':', $k);
+      if ($name == 'entity') {
+        // Load the space this section belongs to.
+        $node = node_load($v);
+      }
+      if ($name == 'section') {
+        // If the $id matches the $section_id then we can go ahead and update
+        // the paragraph item for the space.
+        if ($id == $vars['id'] && isset($node)) {
+          // Not sure we really need this. If not, we don't have to store it in stored_sections, just the section id ($id).
+          $original_section = $v;
+
+          // Now we should probably be able to call oa_export_clone_paragraphs_items()
+          // and pass in the proper parameters.
+          $paragraph = $context['results'][$key]['paragraph'];
+          oa_export_import_paragraph_items($import, $new_entity, $old_entity, 'node');
+          oa_export_clone_paragraphs_items($import, $context, array('paragraphs' => $paragraph), 'node', $node, 'field_oa_related');
+        }
+      }
+    }
+  }
+
+  // Make sure we don't need to remove the data once we import it.
+}

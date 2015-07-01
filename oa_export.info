@@ -1,0 +1,5 @@
+name = Open Atrium Export
+description = Allows exporting/importing of a cloned space.
+core = 7.x
+package = Open Atrium
+dependencies[] = oa_clone
