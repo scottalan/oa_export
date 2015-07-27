@@ -3,8 +3,6 @@
 /**
  * @file
  * The OA export formats file.
- *
- * Got this from Node Export
  */
 
 /**
