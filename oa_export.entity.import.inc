@@ -138,7 +138,12 @@ function oa_export_oa_import_entity_taxonomy_term(&$entity, $key, &$imports, &$m
       continue;
     }
   }
-  if ($exists) {
+  // If this is not a Blueprint then we don't want to create another term with the same name. This keeps us from
+  // re-importing taxonomy, for example, that OA defines by default. This term would not be a blueprint.
+  // @todo: If a taxonomy term that was exported just happens to have the same tid as one that already exists this
+  // @todo: could still be an issue. Need to think this out and maybe we need to compare all columns in the database:
+  // @todo: tid, vid, name, description to make sure this doesn't just happen to have the same name but a different description.
+  if ($exists && empty($term->field_oa_clone_space)) {
     // Just pretend we already imported it.
     $entity->oa_imported = TRUE;
   }
