@@ -107,8 +107,9 @@ function oa_export_preprocess_table(&$vars) {
     foreach ($rows as $key => &$row) {
       list(,$tid) = explode(':', $key);
       // Add the download link to the last element in the data array.
-      $last = end(array_keys($row['data']));
-      $row['data'][$last] .= ' ' . l('<i class="fa fa-download"></i>', 'blueprint/export/' . $tid, array('html' => TRUE));
+      $last_key = array_keys($row['data']);
+      $end = end($last_key);
+      $row['data'][$end] .= ' ' . l(t('download'), 'blueprint/export/' . $tid);
     }
   }
 }
