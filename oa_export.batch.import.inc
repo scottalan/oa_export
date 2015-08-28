@@ -3,6 +3,24 @@
 require_once 'oa_export.entity.import.inc';
 require_once 'oa_export.extras.import.inc';
 
+function oa_export_batch_import_check_blueprint($file) {
+
+  // We need to check the import and make sure the blueprint's name is unique.
+  $batch = array(
+    'title' => t('Reading Import Data...'),
+    'init_message' => t('Checking import for existing blueprint'),
+    'finished' => 'oa_export_import_check_for_blueprint_batch_finished',
+    'file' => drupal_get_path('module', 'oa_export') . '/oa_export.batch.import.inc',
+    'operations' => array(
+      array('_oa_export_batch_import_archive', array($file)),
+    ),
+  );
+
+  // Define the batch. The batch is automatically processed since it is
+  // triggered by a form submission.
+  batch_set($batch);
+}
+
 /**
  * Prepare the import and create a batch process.
  *
@@ -37,7 +55,7 @@ function oa_export_batch_import($file) {
 function oa_export_batch_import_operations(&$batch, $file) {
 
   // Extracts the archive.
-  $batch['operations'][] = array('_oa_export_batch_import_archive', array($file));
+//  $batch['operations'][] = array('_oa_export_batch_import_archive', array($file));
 
   // Imports the entities.
   $batch['operations'][] = array('_oa_export_batch_import_entities', array());
@@ -253,7 +271,27 @@ function _oa_export_batch_import_metadata(&$context) {
 }
 
 /**
- * Finish function for the batch process.
+ * Finish function for the check for existing blueprint batch process.
+ *
+ * @param bool $success
+ *   TRUE if the batch succeeds.
+ * @param array $results
+ *   Data stored in $context['results'] during the batch process.
+ * @param $operations
+ */
+function oa_export_import_check_for_blueprint_batch_finished($success, $results, $operations) {
+  if ($success) {
+    foreach ($results['entities'] as $key => $entity) {
+      if ($entity) {
+
+      }
+    }
+    $location = $_SESSION['oa_export']['extract_location'];
+  }
+}
+
+/**
+ * Finish function for the entity import batch process.
  *
  * @param bool $success
  *   TRUE if the batch succeeds.

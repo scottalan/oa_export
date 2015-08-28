@@ -88,9 +88,15 @@ function oa_export_blueprint_import_form_submit($form, &$form_state) {
   if ($form_state['values']['file'] && isset($file)) {
 
     // Build the batch to import the blueprint.
-    oa_export_batch_import($file);
+//    oa_export_batch_import($file);
+
+    // Look at the import and make sure a blueprint by the same name does not exist.
+    oa_export_batch_import_check_blueprint($file);
+
     // Start the batch process and redirect when it's finished.
     batch_process();
+
+    $last_batch = &batch_get();
   }
   else {
     drupal_set_message(t("There was an error importing the file, try exporting and re-importing."));
