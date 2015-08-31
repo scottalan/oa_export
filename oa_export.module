@@ -70,10 +70,13 @@ function oa_export_theme($existing, $type, $theme, $path) {
  * Implements hook_preprocess_blueprint_download().
  */
 function oa_export_preprocess_blueprint_download_page(&$variables) {
+
+  global $base_url;
+
   // Path to download files, if needed.
   $variables['download_path'] = $_SESSION['oa_export']['download_path'];
   // Path to send user back to.
-  $variables['download_redirect'] = $_SESSION['oa_export']['redirect'];
+  $variables['download_redirect'] = $base_url . '/' . $_SESSION['oa_export']['redirect'];
 }
 
 /**
