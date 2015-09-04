@@ -1,6 +1,7 @@
 <?php
 
 require_once 'oa_export.fields.import.inc';
+require_once 'oa_export.extras.import.inc';
 
 /**
  * Helper function to import entities.
@@ -53,6 +54,13 @@ function oa_export_entity_import($entity_type, &$entity, $key, &$imports, &$map)
     $entity->is_new = TRUE;
     // Save the entity.
     entity_save($entity_type, $entity);
+
+    // Get the original entity id before the entity was saved.
+    list(,$orig_entity_id) = explode(':', $key);
+
+    // We need to check to see if the entity is panelized and if so import it.
+    oa_export_entity_panelizer_import($entity, $entity_type, $orig_entity_id);
+
     // Mark the entity as imported.
     $entity->oa_imported = TRUE;
   }

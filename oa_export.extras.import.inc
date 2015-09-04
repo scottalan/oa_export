@@ -1,5 +1,77 @@
 <?php
 
+function oa_export_entity_panelizer_import($entity, $entity_type, $orig_entity_id) {
+  // Check to see if the entity is panelized.
+  if (isset($entity->panelizer)) {
+    foreach ($entity->panelizer as $view_mode => $panelizer) {
+      if ($view_mode == 'page_manager' && isset($panelizer->pnid) && $panelizer->pnid == $orig_entity_id) {
+
+        // This will contain the new display content keyed by: 'new-UUID'.
+        $new_display_content = array();
+
+        list($entity_id, $revision_id, $bundle) = entity_extract_ids($entity_type, $entity);
+
+        // Set the panelizer entity_id and revision_id.
+        $panelizer->entity_id = $entity_id;
+        $panelizer->revision_id = $revision_id;
+
+        // Let's the panelizer_export_save_callback() know this isn't in the database yet.
+        $panelizer->export_type = 2;
+
+        // May need to just set this to the entity_id.
+        unset($panelizer->pnid);
+
+        $display = &$panelizer->display;
+
+        // Reset the 'did' value so that a new record can be created.
+        $display->did = NULL;
+
+        // A new UUID will be generated during panels_save_display().
+        $display->uuid = '';
+
+        // Reset the 'pid' values of each pane, using a new UUID. Because its
+        // non-numeric, when the display is saved it'll create a new record for
+        // each pane, but still keep all of the internal pointers accurate.
+        foreach ($display->panels as $panel_type => $panes) {
+          foreach ((array)$panes as $position => $pid) {
+            // Just in case the pane isn't found.
+            if (!isset($display->content[$pid])) {
+              continue;
+            }
+
+            // Now we need to re-key the display content and the panes. It is keyed by the old pid which is numeric. This needs to be
+            // non-numeric so we actually get an insert vs an update when panels_save_display() is called. We just use
+            // a uuid since it will be unique and is not numeric.
+            $key = 'new-' . ctools_uuid_generate();
+            $display->panels[$panel_type][$position] = $key;
+            $new_display_content[$key] = &$display->content[$pid];
+
+            // This appears to only serve the purpose of ensuring necessary APIs
+            // and include files are loaded.
+//            ctools_get_content_type($display->content[$pid]->type);
+
+            // Remove the pid, it'll be created during the database insertion.
+            unset($display->content[$pid]->pid);
+
+            // The UUID will be created later as well.
+            $display->content[$pid]->uuid = '';
+
+            // Remove the did as well.
+            unset($display->content[$pid]->did);
+          }
+        }
+
+        // Set the new display content keyed by non-numeric values.
+        $panelizer->display->content = $new_display_content;
+
+        // Save the panelizer object.
+        ctools_include('export');
+        ctools_export_crud_save('panelizer_defaults', $panelizer);
+      }
+    }
+  }
+}
+
 /**
  * Import menu links for this entity.
  *
