@@ -97,7 +97,7 @@ function oa_export_entity_panelizer_export(&$entity, $entity_type, $entity_id, &
           continue;
         }
         // Check for styles on the content.
-        oa_export_entity_panelizer_stylizer_export($display, $pid, $entity, $entity_id, $results);
+        oa_export_entity_panelizer_stylizer_export($display, $pid, $entity, $entity_type, $entity_id, $results);
 
         // There could be custom views that belong to the panelized entity.
         oa_export_entity_panelizer_view_panes_export($display, $pid, $entity, $entity_id, $results);
@@ -120,7 +120,7 @@ function oa_export_entity_panelizer_export(&$entity, $entity_type, $entity_id, &
  * @param array $results
  *   Data stored in $context['results'] during the batch process.
  */
-function oa_export_entity_panelizer_stylizer_export(&$display, $pid, $entity, $entity_id, &$results) {
+function oa_export_entity_panelizer_stylizer_export(&$display, $pid, $entity, $entity_type, $entity_id, &$results) {
   if (!empty($display->content[$pid]->style) && isset($display->content[$pid]->style['style'])) {
     list($type, $name) = explode(':', $display->content[$pid]->style['style']);
     if ($type == 'stylizer' && isset($name)) {
@@ -154,7 +154,7 @@ function oa_export_entity_panelizer_stylizer_export(&$display, $pid, $entity, $e
         watchdog('oa_export', $message, $variables, 'WATCHDOG_WARNING', $link);
 
         // Need to look in results and remove the style that no longer exists since the entity has already been added.
-        unset($results[$entity->type . ':' . $entity_id]->panelizer['page_manager']->display->content[$pid]->style['style']);
+        unset($results[$entity_type . ':' . $entity_id]->panelizer['page_manager']->display->content[$pid]->style['style']);
       }
     }
   }
