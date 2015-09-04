@@ -1,5 +1,13 @@
 <?php
 
+/**
+ * Import panelizers on entities.
+ *
+ * @param $entity
+ * @param $entity_type
+ * @param $orig_entity_id
+ * @throws EntityMalformedException
+ */
 function oa_export_entity_panelizer_import($entity, $entity_type, $orig_entity_id) {
   // Check to see if the entity is panelized.
   if (isset($entity->panelizer)) {
@@ -70,6 +78,10 @@ function oa_export_entity_panelizer_import($entity, $entity_type, $orig_entity_i
       }
     }
   }
+}
+
+function oa_export_entity_panelizer_stylizer_import($entity, $entity_type, $orig_entity_id) {
+
 }
 
 /**
