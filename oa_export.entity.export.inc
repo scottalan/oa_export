@@ -28,7 +28,7 @@ function oa_export_entity_export($entity_type, $entity, &$results) {
       oa_export_fields_export($entity, $entity_type, $results);
     }
 
-    // Export panelizer defaults related to this entity.
+    // If an entity is panelized we need to check panels for styles, content, etc.
     oa_export_entity_panelizer_export($entity, $entity_type, $entity_id, $results);
 
     // Check for comments on this entity.

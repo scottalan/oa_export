@@ -82,34 +82,123 @@ function oa_export_entity_group_metadata_export(&$entity, $entity_type, &$result
  */
 function oa_export_entity_panelizer_export(&$entity, $entity_type, $entity_id, &$results) {
 
-  // Get the bundle this entity belongs to.
-  list(,,$bundle) = entity_extract_ids($entity_type, $entity);
+  // Make sure the enitity is panelized. We only care about non-default view modes.
+  if (isset($entity->panelizer) && !empty($entity->panelizer['page_manager'])) {
 
-  // Load the panelizer handler.
-  if ($handler = panelizer_entity_plugin_get_handler($entity_type)) {
-    // View modes available for this panelizer.
-    $view_modes = $handler->get_available_view_modes($bundle);
+    // Get the bundle this entity belongs to.
+    list(, , $bundle) = entity_extract_ids($entity_type, $entity);
 
-    foreach ($view_modes as $view_mode => $title) {
-      // Load the panelizer objects.
-      $panelizers = $handler->get_default_panelizer_objects($bundle . '.' . $view_mode);
+    $display = &$entity->panelizer['page_manager']->display;
 
-      if (!empty($panelizers)) {
-        foreach ($panelizers as $name => $panelizer) {
-          // Don't export disabled displays.
-          if (empty($panelizer->disabled)) {
-            // If the pnid matches the entity_id then this belongs to this entity.
-            if (isset($panelizer->pnid) && $panelizer->pnid == $entity_id) {
-              // @todo: Figure out if we need this.
-              $panelizer->base_contexts = $handler->get_base_contexts($entity);
-              // Replace colons with hyphens for the name so we can use it in our export. We are using colons as well.
-              $new_name = str_replace(':', '-', $name);
-              // Add the panelizer to our results for export.
-              $results['export']['panelizer:' . $entity_id . ':' . $new_name] = $panelizer;
-            }
-          }
+    foreach ($display->panels as $panel_type => $panes) {
+      foreach ((array)$panes as $position => $pid) {
+        // Just in case the pane isn't found.
+        if (!isset($display->content[$pid])) {
+          continue;
         }
+        // Check for styles on the content.
+        oa_export_entity_panelizer_stylizer_export($display, $pid, $entity, $entity_id, $results);
+
+        // There could be custom views that belong to the panelized entity.
+        oa_export_entity_panelizer_view_panes_export($display, $pid, $entity, $entity_id, $results);
       }
     }
+  }
+}
+
+/**
+ * Export stylizers used in panelizer objects for this entity.
+ *
+ * @param object $display
+ *   The panelizer view mode display object.
+ * @param int $pid
+ *  The panel id of the panelizer content.
+ * @param object $entity
+ *   The fully loaded entity.
+ * @param int $entity_id
+ *   The id of the entity being exported.
+ * @param array $results
+ *   Data stored in $context['results'] during the batch process.
+ */
+function oa_export_entity_panelizer_stylizer_export(&$display, $pid, $entity, $entity_id, &$results) {
+  if (!empty($display->content[$pid]->style) && isset($display->content[$pid]->style['style'])) {
+    list($type, $name) = explode(':', $display->content[$pid]->style['style']);
+    if ($type == 'stylizer' && isset($name)) {
+
+      // Load all stylizer items.
+      ctools_include('export');
+      ctools_include('stylizer');
+      $items = ctools_export_crud_load_all('stylizer');
+
+      // Make sure we have a stylizer by that name.
+      if (!empty($items[$name])) {
+        // We may have already exported this stylizer.
+        if (!isset($results['export']['stylizer:' . $name])) {
+          // Store the stylizer in our export.
+          $results['export']['stylizer:' . $name]['item'] = $items[$name];
+        }
+        // Instead of exporting the same stylizer multiple times we just create a place to store all entity ids
+        // of entities that are panelized and contain this style.
+        $results['export']['stylizer:' . $name]['entities'][] = $entity_id;
+      }
+      else {
+        // Not sure this can happen but if we don't find a stylizer by that name: log it to watchdog and remove
+        // the style so we don't get an error on import.
+        $message = t('Could not find the !key stylizer during export. Removed it from the !panelizer_name content display style for the entity with id: !pid.');
+        $variables = array(
+          '!key' => $display->content[$pid]->style['style'],
+          '!panelizer_name' => $entity->panelizer['page_manager']->name,
+          '!pid' => $pid,
+        );
+        $link = l(t('Stylizers'), 'admin/structure/stylizer');
+        watchdog('oa_export', $message, $variables, 'WATCHDOG_WARNING', $link);
+
+        // Need to look in results and remove the style that no longer exists since the entity has already been added.
+        unset($results[$entity->type . ':' . $entity_id]->panelizer['page_manager']->display->content[$pid]->style['style']);
+      }
+    }
+  }
+}
+
+/**
+ * Export custom views panes used in panelizer objects for this entity.
+ *
+ * @param object $display
+ *   The panelizer view mode display object.
+ * @param int $pid
+ *  The panel id of the panelizer content.
+ * @param object $entity
+ *   The fully loaded entity.
+ * @param int $entity_id
+ *   The id of the entity being exported.
+ * @param array $results
+ *   Data stored in $context['results'] during the batch process.
+ */
+function oa_export_entity_panelizer_view_panes_export(&$display, $pid, $entity, $entity_id, &$results) {
+
+  // Make sure this is a views pane and that it is being shown.
+  // @todo: If it's not being shown do we need to remove the reference to it?
+  if ($display->content[$pid]->type == 'views_panes' && $display->content[$pid]->shown) {
+    // This content is a views pane so we need to export the view. subtype = "oa_project_calendar-oa_calendar_month"
+    $subtype = $display->content[$pid]->subtype;
+    // Get the name of the view.
+    list($view_name) = explode('-', $subtype);
+    // Load the view by its name.
+    $view = views_get_view($view_name, TRUE);
+
+    // If the view hasn't already been exported, export it now. We could possibly be exporting a lot of views that are
+    // already created when OA is installed. It's easy to check for an existing view on import but this could increase
+    // the size of the export without needing to.
+    if (!isset($results['export']['view:' . $view_name])) {
+      // Export the view with our results.
+      $results['export']['view:' . $view_name]['item'] = $view;
+    }
+    // Instead of exporting the same views pane multiple times we just create a place to store all entity ids
+    // of entities that are using this view pane. I don't really see any way around this for now. I guess we can worry
+    // about this if the export ever grows too large?
+    $results['export']['view:' . $view_name]['entities'][] = $entity_id;
+
+    // @todo: Do we need to make sure the view exists like we do for stylizer? Can a view be deleted and its reference
+    // not be removed from the display?
   }
 }
