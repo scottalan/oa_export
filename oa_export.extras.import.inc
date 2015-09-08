@@ -50,13 +50,9 @@ function oa_export_entity_panelizer_import($entity, $entity_type, $orig_entity_i
             // Now we need to re-key the display content and the panes. It is keyed by the old pid which is numeric. This needs to be
             // non-numeric so we actually get an insert vs an update when panels_save_display() is called. We just use
             // a uuid since it will be unique and is not numeric.
-            $key = 'new-' . ctools_uuid_generate();
-            $display->panels[$panel_type][$position] = $key;
-            $new_display_content[$key] = &$display->content[$pid];
-
-            // This appears to only serve the purpose of ensuring necessary APIs
-            // and include files are loaded.
-//            ctools_get_content_type($display->content[$pid]->type);
+            $new_pid = 'new-' . ctools_uuid_generate();
+            $display->panels[$panel_type][$position] = $new_pid;
+            $new_display_content[$new_pid] = &$display->content[$pid];
 
             // Remove the pid, it'll be created during the database insertion.
             unset($display->content[$pid]->pid);
@@ -78,10 +74,6 @@ function oa_export_entity_panelizer_import($entity, $entity_type, $orig_entity_i
       }
     }
   }
-}
-
-function oa_export_entity_panelizer_stylizer_import($entity, $entity_type, $orig_entity_id) {
-
 }
 
 /**
