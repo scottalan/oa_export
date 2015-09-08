@@ -13,11 +13,9 @@
 function oa_export_fields_export(&$entity, $entity_type, &$results) {
   foreach (field_info_fields() as $field_name => $field) {
     if (isset($entity->$field_name) && !empty($entity->$field_name)) {
-      // We don't use module_invoke because we want to pass the entity
-      // by reference.
+      // We don't use module_invoke because we want to pass the entity by reference.
       foreach (module_implements('oa_export_field_' . $field['type']) as $module) {
         $function = $module . '_oa_export_field_' . $field['type'];
-        $_type = $field['type'];
         $function($entity, $entity_type, $field_name, $results);
       }
     }
@@ -173,7 +171,7 @@ function oa_export_oa_export_field_taxonomy_term_reference(&$entity, $entity_typ
 function oa_export_entity_reference_field($entity_id, &$entity, $entity_type, $field_name, &$results) {
   // We need to check the settings on this field.
   $field_info = field_info_field($field_name);
-  // We only want reference fields that are tageting nodes.
+  // We only want to reference fields that are targeting nodes.
   if ($field_info['settings']['target_type'] === 'node') {
     // Look for the exported entity in our map.
     if (!isset($results['export']['node:' . $entity_id])) {

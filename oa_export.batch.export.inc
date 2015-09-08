@@ -57,7 +57,7 @@ function oa_export_batch_export_operations(&$batch, $blueprint) {
   // The blueprint.
   $batch['operations'][] = array('_oa_export_batch_export_blueprint', array($blueprint));
 
-  // Get the entity reference, the space, this blueprint is built on.
+  // Get the entity reference for the space, this blueprint is built on.
   $wrapper = entity_metadata_wrapper('taxonomy_term', $blueprint);
   $space = $wrapper->{BLUEPRINT_SPACE}->value();
 
