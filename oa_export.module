@@ -42,7 +42,7 @@ function oa_export_menu() {
       'title' => 'Blueprint Download',
       'access callback' => 'user_access',
       'access arguments' => array('export blueprint'),
-      'page callback' => 'oa_export_batch_export_download_finished_redirect',
+      'page callback' => 'oa_export_batch_file_download_finished_redirect',
     ),
   );
 }
