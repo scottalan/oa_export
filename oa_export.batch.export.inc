@@ -20,7 +20,7 @@ function oa_export_batch_export($blueprint, $export_type = 'file') {
     case 'file':
       $_SESSION['oa_export'] = array();
 
-      // Store the path we will link to after download.
+      // Store the path we will link to after the file download.
       $_SESSION['oa_export']['redirect'] = 'admin/structure/taxonomy/space_type';
 
       // Store the export directory in the session variable.
@@ -43,8 +43,8 @@ function oa_export_batch_export($blueprint, $export_type = 'file') {
 
         $batch = array(
           'title' => t('Blueprint Download'),
-          'init_message' => t('Preparing to download "!name" blueprint', array('!name' => $blueprint->name)),
-          'finished' => 'oa_export_batch_export_download_finished',
+          'init_message' => t('Preparing to download "!name" blueprint to a file.', array('!name' => $blueprint->name)),
+          'finished' => 'oa_export_batch_file_download_finished',
         );
 
         // Defines batch operations for the batch.
@@ -61,13 +61,13 @@ function oa_export_batch_export($blueprint, $export_type = 'file') {
       break;
 
     case 'module':
-      // Store the path we will link to after download.
+      // Store the path we will link to after module creation.
       $_SESSION['oa_export']['redirect'] = 'blueprint/export/' . $blueprint->tid
       ;
       $batch = array(
         'title' => t('Blueprint Module Export'),
         'init_message' => t('Preparing to export the "!name" blueprint to a module.', array('!name' => $blueprint->name)),
-        'finished' => 'oa_export_batch_export_module_finished',
+        'finished' => 'oa_export_batch_module_export_finished',
       );
 
       // Defines batch operations for the batch.
@@ -82,7 +82,7 @@ function oa_export_batch_export($blueprint, $export_type = 'file') {
 }
 
 /**
- * Defines batch operations for the download batch.
+ * Defines batch operations for the file download batch.
  *
  * @param array $batch
  *   The current batch.
@@ -203,7 +203,7 @@ function _oa_export_batch_export_dependency($entity, &$context) {
  * @param $operations
  * @throws Exception
  */
-function oa_export_batch_export_download_finished($success, $results, $operations) {
+function oa_export_batch_file_download_finished($success, $results, $operations) {
   if ($success) {
 
     try {
@@ -254,7 +254,7 @@ function oa_export_batch_export_download_finished($success, $results, $operation
   }
 }
 
-function oa_export_batch_export_module_finished($success, $results, $operations) {
+function oa_export_batch_module_export_finished($success, $results, $operations) {
   if ($success) {
     // See if we can get the module path this way at this point.
     // @todo: We can, so maybe store less variables in session?
@@ -274,7 +274,7 @@ function oa_export_batch_export_module_finished($success, $results, $operations)
 /**
  * Helper function that handles the file download.
  */
-function oa_export_batch_export_download_finished_redirect() {
+function oa_export_batch_file_download_finished_redirect() {
 
   if (empty($_SESSION['oa_export']['directory']) || empty($_SESSION['oa_export']['file'])) {
     return t('The file cannot be found.');
