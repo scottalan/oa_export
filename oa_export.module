@@ -123,7 +123,8 @@ function oa_export_preprocess_table(&$vars) {
       // Add the download link to the last element in the data array.
       $last_key = array_keys($row['data']);
       $end = end($last_key);
-      $row['data'][$end] .= ' ' . l(t('download'), 'blueprint/export/' . $tid);
+      $row['data'][$end] .= ' ' . l(t('download'), 'blueprint/download/' . $tid);
+      $row['data'][$end] .= ' ' . l(t('export'), 'blueprint/export/' . $tid);
     }
   }
 }
