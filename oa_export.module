@@ -52,9 +52,13 @@ function oa_export_menu() {
  */
 function oa_export_permission() {
   return array(
+    'download blueprint' => array(
+      'title' => t('Blueprint Download'),
+      'description' => t('This role will be allowed to download blueprints to an archived file.'),
+    ),
     'export blueprint' => array(
       'title' => t('Blueprint Export'),
-      'description' => t('This role will be allowed to export blueprints.'),
+      'description' => t('This role will be allowed to export a blueprints to a modules.'),
     ),
     'import blueprint' => array(
       'title' => t('Blueprint Import'),
