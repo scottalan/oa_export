@@ -10,42 +10,78 @@ define('BLUEPRINT_SPACE', 'field_oa_clone_space');
  *
  * @param object $blueprint
  *   The fully loaded blueprint entity.
+ * @param string $export_type
+ *   Defaults to 'file' but could also be 'module'.
  */
-function oa_export_batch_export($blueprint) {
+function oa_export_batch_export($blueprint, $export_type = 'file') {
 
-  // Store space data in session.
-  $_SESSION['oa_export'] = array();
+  switch ($export_type) {
+    case 'file':
+      $_SESSION['oa_export'] = array();
 
-  // Store the path we will link to after download.
-  $_SESSION['oa_export']['redirect'] = 'admin/structure/taxonomy/space_type';
+      // Store the path we will link to after download.
+      $_SESSION['oa_export']['redirect'] = 'admin/structure/taxonomy/space_type';
 
-  // Store the export directory in the session variable.
-  $_SESSION['oa_export']['directory'] = oa_export_create_temp_directory($blueprint->name);
+      // Store the export directory in the session variable.
+      if ($_SESSION['oa_export']['directory'] = oa_export_create_temp_export_directory($blueprint->name)) {
+        // Setup a directory for exporting files.
+        if (oa_export_create_directories($_SESSION['oa_export']['directory'] . '/files')) {
+          $_SESSION['oa_export']['files_directory'] = $_SESSION['oa_export']['directory'] . '/files';
+        }
+        else {
+          drupal_set_message(t('Could not create @files', array('@files' => $_SESSION['oa_export']['directory'] . '/files')), 'error');
+          oa_export_cleanup($_SESSION['oa_export']['directory'], $_SESSION['oa_export']['redirect']);
+        }
 
-  // Setup a directory for exporting files.
-  $_SESSION['oa_export']['files_directory'] = oa_export_create_sub_directory($_SESSION['oa_export']['directory'], 'files');
+        // Temporary directory for system.
+        $tmp_dir = sys_get_temp_dir();
+        if (!is_writable($tmp_dir)) {
+          drupal_set_message(t('In order for this export to work "%dir" needs to be writable.', array('%dir' => $tmp_dir)), 'error');
+          oa_export_cleanup($_SESSION['oa_export']['directory'], $_SESSION['oa_export']['redirect']);
+        }
 
-  $batch = array(
-    'title' => t('Blueprint Export'),
-    'init_message' => t('Preparing to export !name blueprint', array('!name' => $blueprint->name)),
-    'finished' => 'oa_export_batch_export_finished',
-  );
+        $batch = array(
+          'title' => t('Blueprint Download'),
+          'init_message' => t('Preparing to download "!name" blueprint', array('!name' => $blueprint->name)),
+          'finished' => 'oa_export_batch_export_download_finished',
+        );
 
-  // Defines batch operations for the batch.
-  oa_export_batch_export_operations($batch, $blueprint);
+        // Defines batch operations for the batch.
+        oa_export_batch_export_operations($batch, $blueprint);
 
-  // Temporary directory for system.
-  $tmp_dir = sys_get_temp_dir();
-  if (!is_writable($tmp_dir)) {
-    drupal_set_message(t('In order for this export to work "%dir" needs to be writable.', array('%dir' => $tmp_dir)), 'error');
+        batch_set($batch);
+        // Redirect the user to a page to download the file.
+        batch_process('oa_export/download');
+      }
+      else {
+        drupal_set_message(t('Could not create a directory in your system temporary directory.'), 'error');
+        oa_export_cleanup($_SESSION['oa_export']['directory'], $_SESSION['oa_export']['redirect']);
+      }
+      break;
+
+    case 'module':
+      // Store the path we will link to after download.
+      $_SESSION['oa_export']['redirect'] = 'blueprint/export/' . $blueprint->tid
+      ;
+      $batch = array(
+        'title' => t('Blueprint Module Export'),
+        'init_message' => t('Preparing to export the "!name" blueprint to a module.', array('!name' => $blueprint->name)),
+        'finished' => 'oa_export_batch_export_module_finished',
+      );
+
+      // Defines batch operations for the batch.
+      oa_export_batch_export_operations($batch, $blueprint);
+
+      batch_set($batch);
+      break;
+
+    default:
+      break;
   }
-  batch_set($batch);
-  // Redirect the user to a page to download the file.
-  batch_process('oa_export/download');
 }
 
 /**
- * Defines batch operations for the batch.
+ * Defines batch operations for the download batch.
  *
  * @param array $batch
  *   The current batch.
