@@ -90,16 +90,12 @@ function oa_export_batch_export($blueprint, $export_type = 'file') {
  */
 function oa_export_batch_export_operations(&$batch, $blueprint) {
 
-  // The blueprint.
-  $batch['operations'][] = array('_oa_export_batch_export_blueprint', array($blueprint));
-
-  // Get the entity reference, the space, this blueprint is built on.
+  // Get the entity reference of the space this blueprint is built on.
   $wrapper = entity_metadata_wrapper('taxonomy_term', $blueprint);
   $space = $wrapper->{BLUEPRINT_SPACE}->value();
 
-  // The space should have been exported the blueprint batch operation but the
-  // space can still have other dependencies. e.g., comments.
-  $batch['operations'][] = array('_oa_export_batch_export_dependency', array($space));
+  // The blueprint.
+  $batch['operations'][] = array('_oa_export_batch_export_blueprint', array($blueprint, $space));
 
   // Entities that are sub groups of the space.
   $groups = oa_core_get_groups_by_parent($space->nid, NULL);
@@ -115,14 +111,17 @@ function oa_export_batch_export_operations(&$batch, $blueprint) {
 }
 
 /**
- * A batch operation to export a blueprint.
+ * A batch operation to export a blueprint. We want to export the blueprint but don't want the parents of the space the
+ * blueprint is being built on.
  *
  * @param object $blueprint
  *   The fully loaded blueprint entity.
+ * @param object $space
+ *   The space being exported.
  * @param array $context
  *   Passed around between batch operations.
  */
-function _oa_export_batch_export_blueprint($blueprint, &$context) {
+function _oa_export_batch_export_blueprint($blueprint, $space, &$context) {
 
   // As of now we only allow one blueprint export at a time.
   if (empty($context['sandbox']['max'])) {
@@ -133,8 +132,31 @@ function _oa_export_batch_export_blueprint($blueprint, &$context) {
     $context['results']['total'] = (!empty($context['results']['total']) ? $context['results']['total'] : 0) + $context['sandbox']['max'];
   }
 
-  // Export the entity.
-  oa_export_entity_export('taxonomy_term', $blueprint, $context['results']);
+  // If we have access to this session variable let's store it in the results, this is more stable.
+  if (isset($_SESSION['oa_export']['module_path'])) {
+    $context['results']['export_path'] = $_SESSION['oa_export']['module_path'];
+  }
+  if (isset($_SESSION['oa_export']['module'])) {
+    $context['results']['module'] = $_SESSION['oa_export']['module'];
+  }
+
+  // Store the reference to the space the blueprint is referencing.
+  $space_reference = $blueprint->field_oa_clone_space;
+
+  // Remove the space reference for now so it doesn't get exported yet. We will export it next.
+  $blueprint->field_oa_clone_space = array();
+
+  // Export the blueprint.
+  oa_export_entity_export('taxonomy_term', $blueprint, $results);
+
+  // Put the reference to the space back so we can reference it during our import.
+  $context['results']['export']['taxonomy_term:' . $blueprint->tid]->field_oa_clone_space = $space_reference;
+
+  // Remove the oa_parent_space reference so we don't get this space's parent space and all of its dependencies.
+  $space->oa_parent_space = array();
+
+  // Export the space without reference to its parent space.
+  oa_export_entity_export('node', $space, $context['results']);
 
   // Bump the progress indicator.
   $context['sandbox']['progress']++;
