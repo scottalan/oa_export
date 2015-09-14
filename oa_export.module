@@ -225,3 +225,26 @@ function oa_export_oa_import_remove_entity_alter($entities) {
     }
   }
 }
+
+/**
+ * Removes a directory recusively and if provided will direct the user to a new destination.
+ *
+ * @param string $directory
+ *   The full path the directory to remove.
+ * @param string $goto
+ *   A relative path to send the user to.
+ */
+function oa_export_cleanup($directory = NULL, $goto = NULL) {
+
+  // Get rid of our session variables.
+  unset($_SESSION['oa_export']);
+
+  if (isset($directory)) {
+    // Remove the directory and all its contents.
+    oa_export_remove_directory($directory);
+  }
+  if (isset($goto)) {
+    // Send the user somewhere else.
+    drupal_goto($goto);
+  }
+}
