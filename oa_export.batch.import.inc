@@ -152,6 +152,41 @@ function _oa_export_batch_import_archive($file, &$context) {
 }
 
 /**
+ * Extract the file being imported and store the entities in the batch context.
+ *
+ * @param object $file
+ *   The file that contains the export data.
+ * @param array $context
+ *   Passed around between batch operations.
+ * @throws Exception
+ *
+ * @see update_manager_archive_extract().
+ */
+function _oa_export_batch_import_data($data, &$context) {
+
+  if (empty($context['sandbox']['max'])) {
+    $context['sandbox']['progress'] = 0;
+    $context['sandbox']['max'] = 1;
+    $context['results']['total'] = (!empty($context['results']['total']) ? $context['results']['total'] : 0) + $context['sandbox']['max'];
+  }
+
+  // Get the actual path to our json file that contains our entities.
+//  $real_path = realpath($extraction_location . '/entities.json');
+  $module_path = drupal_get_path('module', $name) . '/entities.json';
+
+  // Store the entities.
+  $context['results']['entities'] = oa_export_import_decode_data($module_path);
+  // Will store a map for new entity ids.
+  $context['results']['map'] = array();
+
+  // Bump the progress indicator.
+  $context['sandbox']['progress']++;
+
+  // We are finished un-archiving the entities.
+  $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
+}
+
+/**
  * Imports the entities.
  *
  * @param array $context
