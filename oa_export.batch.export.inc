@@ -11,7 +11,8 @@ define('BLUEPRINT_SPACE', 'field_oa_clone_space');
  * @param object $blueprint
  *   The fully loaded blueprint entity.
  * @param string $export_type
- *   Defaults to 'file' but could also be 'module'.
+ *   Defaults to 'file' but could also be 'module'. This will allow to define different types of exports when
+ *   triggering an export.
  */
 function oa_export_batch_export($blueprint, $export_type = 'file') {
 
