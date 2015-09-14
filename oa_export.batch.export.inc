@@ -202,7 +202,7 @@ function _oa_export_batch_export_dependency($entity, &$context) {
  * @param $operations
  * @throws Exception
  */
-function oa_export_batch_export_finished($success, $results, $operations) {
+function oa_export_batch_export_download_finished($success, $results, $operations) {
   if ($success) {
 
     try {
@@ -253,10 +253,27 @@ function oa_export_batch_export_finished($success, $results, $operations) {
   }
 }
 
+function oa_export_batch_export_module_finished($success, $results, $operations) {
+  if ($success) {
+    // See if we can get the module path this way at this point.
+    // @todo: We can, so maybe store less variables in session?
+    $module_path = drupal_get_path('module', $results['module']);
+    if (isset($results['export_path'])) {
+      // Create a json file to add to the oa_export directory in our module.
+      $file = oa_export_create_json_export('entities', $results['export'], $results['export_path'] . '/oa_export');
+    }
+  }
+  else {
+    drupal_set_message(t('The batch finished but something went wrong. Try again or contact your system administrator.'));
+    $dir = ($_SESSION['oa_export']['type'] == 'new') ? $_SESSION['oa_export']['module_path'] ? ($_SESSION['oa_export']['type'] == 'existing') : $_SESSION['oa_export']['module_path'] . '/oa_export' : NULL;
+    oa_export_cleanup($dir, $_SESSION['oa_export']['redirect']);
+  }
+}
+
 /**
  * Helper function that handles the file download.
  */
-function oa_export_batch_export_finished_redirect() {
+function oa_export_batch_export_download_finished_redirect() {
 
   if (empty($_SESSION['oa_export']['directory']) || empty($_SESSION['oa_export']['file'])) {
     return t('The file cannot be found.');
@@ -267,15 +284,15 @@ function oa_export_batch_export_finished_redirect() {
   drupal_add_js('setTimeout(function() { window.location.href = "' . $redirect . '"; }, 2000);', 'inline');
 
   // Remove the temporary directory we created.
-  oa_export_remove_temp_directory($_SESSION['oa_export']['directory']);
+  oa_export_remove_directory($_SESSION['oa_export']['directory']);
 
   $output = theme('blueprint_download_page', array());
 
   // Remove the temporary tar file.
   unlink($_SESSION['oa_export']['file']);
 
-  // Get rid of our session variables.
-  unset($_SESSION['oa_export']);
+  // Clean up.
+  oa_export_cleanup();
 
   return $output;
 }
