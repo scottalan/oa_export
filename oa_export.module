@@ -1,6 +1,7 @@
 <?php
 
 require_once('oa_export.batch.export.inc');
+require_once('oa_export.module.export.inc');
 require_once('oa_export.form.import.inc');
 require_once('formats/json.inc');
 require_once('oa_export.file.inc');
@@ -12,16 +13,25 @@ require_once('oa_export.fields.export.inc');
  */
 function oa_export_menu() {
   return array(
-    'blueprint/export/%taxonomy_term' => array(
-      'title' => t('Blueprint Export'),
+    'blueprint/download/%taxonomy_term' => array(
+      'title' => 'Blueprint Download',
       'access callback' => 'user_access',
-      'access arguments' => array('export blueprint'),
+      'access arguments' => array('download blueprint'),
       'page callback' => 'oa_export_batch_export',
       'page arguments' => array(2),
       'type' => MENU_CALLBACK,
     ),
+    'blueprint/export/%taxonomy_term' => array(
+      'title' => 'Blueprint Export',
+      'description' => 'Exports you blueprint to a module.',
+      'access callback' => 'user_access',
+      'access arguments' => array('export blueprint'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('oa_export_generate_module_form', 2),
+      'type' => MENU_CALLBACK,
+    ),
     'blueprint/import' => array(
-      'title' => t('Blueprint Import'),
+      'title' => 'Blueprint Import',
       'access callback' => 'user_access',
       'access arguments' => array('import blueprint'),
       'page callback' => 'drupal_get_form',
@@ -29,10 +39,10 @@ function oa_export_menu() {
       'type' => MENU_LOCAL_ACTION,
     ),
     'oa_export/download' => array(
-      'title' => t('Blueprint Download'),
+      'title' => 'Blueprint Download',
       'access callback' => 'user_access',
       'access arguments' => array('export blueprint'),
-      'page callback' => 'oa_export_batch_export_finished_redirect',
+      'page callback' => 'oa_export_batch_export_download_finished_redirect',
     ),
   );
 }
