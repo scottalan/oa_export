@@ -35,13 +35,23 @@ function oa_export_create_json_export($name, $export, $location) {
  *
  * @param string $name
  *  The name of the blueprint.
+ * @param string $location
+ *   Where the temporary directory will be created.
+ * @param bool $is_module
+ *   Whether this is a module or just a file download.
+ *
  * @return bool|string
  */
-function oa_export_create_temp_export_directory($name) {
+function oa_export_create_temp_export_directory($name, $location, $is_module = FALSE) {
   // Format the name of the blueprint for the filename.
   $name = str_replace(' ', '_', strtolower($name));
   // The name of the directory we are storing the export.
-  $dir_name = sys_get_temp_dir() . '/' . 'oa_export_' . $name . '_' . REQUEST_TIME;
+  if ($is_module) {
+    $dir_name = $location . '/' . $name;
+  }
+  else {
+    $dir_name = $location . '/' . 'oa_export__' . $name . '__' . REQUEST_TIME;
+  }
   // Create our temporary directory.
   $created = @mkdir($dir_name, 0755, TRUE);
   if ($created) {
