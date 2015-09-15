@@ -8,6 +8,12 @@ require_once('oa_export.file.inc');
 require_once('oa_export.formats.inc');
 require_once('oa_export.fields.export.inc');
 
+define('OA_EXPORT_DEFAULT_MODULE_PATH', 'sites/all/modules');
+define('BLUEPRINT_SPACE', 'field_oa_clone_space');
+define('OA_EXPORT_FILES', 'files');
+define('OA_EXPORT_DIR', 'oa_export');
+define('OA_EXPORT_REDIRECT', 'admin/structure/taxonomy/space_type');
+
 /**
  * Implements hook_menu().
  */
@@ -87,7 +93,7 @@ function oa_export_preprocess_blueprint_download_page(&$variables) {
   // Path to download files, if needed.
   $variables['download_path'] = $_SESSION['oa_export']['download_path'];
   // Path to send user back to.
-  $variables['download_redirect'] = $_SESSION['oa_export']['redirect'];
+  $variables['download_redirect'] = OA_EXPORT_REDIRECT;
 }
 
 /**
