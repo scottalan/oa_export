@@ -201,7 +201,7 @@ function oa_export_oa_import_entity_comment(&$entity, $key, &$imports, &$map) {
 function oa_export_oa_import_entity_file(&$entity, $key, &$imports, &$map) {
 
   // The files that were exported are located here.
-  $file_location = $_SESSION['oa_export']['extract_location'] . '/files';
+  $file_location = $_SESSION['oa_export']['extract_location'] . '/' . OA_EXPORT_FILES;
 
   // Make sure our file entity is an array.
   $file = is_object($entity) ? (array) $entity : $entity;
@@ -215,8 +215,7 @@ function oa_export_oa_import_entity_file(&$entity, $key, &$imports, &$map) {
   // Find the actual file we need to import.
   $file_contents = file_get_contents(realpath($file_location.DIRECTORY_SEPARATOR.$filename));
 
-  // Save the file by the same name to its new location. This calls file_save()
-  // for us.
+  // Save the file by the same name to its new location. This calls file_save() for us.
   if ($new_file = file_save_data($file_contents, $destination . $filename)) { // FILE_EXISTS_REPLACE
     // Convert the file back to an object after merging the old file with the
     // new file. This is necessary as the fields that exist on the old file are
