@@ -3,8 +3,6 @@
 require_once 'oa_export.entity.export.inc';
 require_once 'oa_export.fields.export.inc';
 
-define('BLUEPRINT_SPACE', 'field_oa_clone_space');
-
 /**
  * Prepare the export and create a batch process.
  *
@@ -18,27 +16,27 @@ function oa_export_batch_export($blueprint, $export_type = 'file') {
 
   switch ($export_type) {
     case 'file':
+      // Start storing session variables for file download.
       $_SESSION['oa_export'] = array();
 
-      // Store the path we will link to after the file download.
-      $_SESSION['oa_export']['redirect'] = 'admin/structure/taxonomy/space_type';
-
       // Store the export directory in the session variable.
-      if ($_SESSION['oa_export']['directory'] = oa_export_create_temp_export_directory($blueprint->name)) {
-        // Setup a directory for exporting files.
-        if (oa_export_create_directories($_SESSION['oa_export']['directory'] . '/files')) {
-          $_SESSION['oa_export']['files_directory'] = $_SESSION['oa_export']['directory'] . '/files';
-        }
-        else {
-          drupal_set_message(t('Could not create @files', array('@files' => $_SESSION['oa_export']['directory'] . '/files')), 'error');
-          oa_export_cleanup($_SESSION['oa_export']['directory'], $_SESSION['oa_export']['redirect']);
+      if ($_SESSION['oa_export']['directory'] = oa_export_create_temp_export_directory($blueprint->name, file_directory_temp())) {
+
+        // Create the file directory.
+        if (!oa_export_create_directories($_SESSION['oa_export']['directory'] . '/' . OA_EXPORT_FILES)) {
+          // Make sure we successfully create a directory for exporting files.
+          drupal_set_message(t('Could not create @files', array('@files' => $_SESSION['oa_export']['directory'] . '/' . OA_EXPORT_FILES)), 'error');
+          oa_export_cleanup($_SESSION['oa_export']['directory'], OA_EXPORT_REDIRECT);
         }
 
-        // Temporary directory for system.
-        $tmp_dir = sys_get_temp_dir();
+        // Store the files directory in session. It is needed later when copying files.
+        $_SESSION['oa_export']['files_directory'] = $_SESSION['oa_export']['directory'] . '/' . OA_EXPORT_FILES;
+
+        // Temporary directory for system. Gets the path of system-appropriate temporary directory.
+        $tmp_dir = file_directory_temp();
         if (!is_writable($tmp_dir)) {
           drupal_set_message(t('In order for this export to work "%dir" needs to be writable.', array('%dir' => $tmp_dir)), 'error');
-          oa_export_cleanup($_SESSION['oa_export']['directory'], $_SESSION['oa_export']['redirect']);
+          oa_export_cleanup($_SESSION['oa_export']['directory'], OA_EXPORT_REDIRECT);
         }
 
         $batch = array(
@@ -56,13 +54,13 @@ function oa_export_batch_export($blueprint, $export_type = 'file') {
       }
       else {
         drupal_set_message(t('Could not create a directory in your system temporary directory.'), 'error');
-        oa_export_cleanup($_SESSION['oa_export']['directory'], $_SESSION['oa_export']['redirect']);
+        oa_export_cleanup($_SESSION['oa_export']['directory'], OA_EXPORT_REDIRECT);
       }
       break;
 
     case 'module':
-      // Store the path we will link to after module creation.
-      $_SESSION['oa_export']['redirect'] = 'blueprint/export/' . $blueprint->tid
+      // Path to module.
+      $module_path = drupal_get_path('module', $_SESSION['oa_export']['module']);
       ;
       $batch = array(
         'title' => t('Blueprint Module Export'),
@@ -133,14 +131,6 @@ function _oa_export_batch_export_blueprint($blueprint, $space, &$context) {
     $context['results']['total'] = (!empty($context['results']['total']) ? $context['results']['total'] : 0) + $context['sandbox']['max'];
   }
 
-  // If we have access to this session variable let's store it in the results, this is more stable.
-  if (isset($_SESSION['oa_export']['module_path'])) {
-    $context['results']['export_path'] = $_SESSION['oa_export']['module_path'];
-  }
-  if (isset($_SESSION['oa_export']['module'])) {
-    $context['results']['module'] = $_SESSION['oa_export']['module'];
-  }
-
   // Store the reference to the space the blueprint is referencing.
   $space_reference = $blueprint->field_oa_clone_space;
 
@@ -205,23 +195,24 @@ function _oa_export_batch_export_dependency($entity, &$context) {
  */
 function oa_export_batch_file_download_finished($success, $results, $operations) {
   if ($success) {
-
     try {
       // Generate a file name that matches our directory.
       $base = basename($_SESSION['oa_export']['directory']);
-      $tmp = file_directory_temp();
-      $_SESSION['oa_export']['file'] = $tmp . DIRECTORY_SEPARATOR . $base . '.tar.gz';
+      $tmp_dir = file_directory_temp();
+      $_SESSION['oa_export']['file'] = $tmp_dir . '/' . $base . '.tar.gz';
 
       // Create a json file to add to our export directory that contains the blueprint.
-      $file = oa_export_create_json_export('entities', $results['export'], $_SESSION['oa_export']['directory']);
-
-      if ($file) {
+      if (!oa_export_create_json_export('entities', $results['export'], $_SESSION['oa_export']['directory'])) {
+        drupal_set_message(t('There was an error creating the export file.'), 'error');
+        oa_export_cleanup(isset($clean_dir) ? $clean_dir : NULL, OA_EXPORT_REDIRECT);
+      }
+      else {
         // Build a compressed file from our blueprint.
         $new_tar = new Archive_Tar($_SESSION['oa_export']['file']);
 
         // We call this directly so we can modify the directory structure for our
-        // tar file. This will remove "/tmp" from the tar.
-        $new_tar->createModify(array($_SESSION['oa_export']['directory']), '', file_directory_temp());
+        // tar file. This will remove the base directory from the tar.
+        $new_tar->createModify(array($_SESSION['oa_export']['directory']), '', $tmp_dir);
 
         // Get the public file directory.
         $public = variable_get('file_public_path', conf_path() . '/files');
@@ -231,7 +222,8 @@ function oa_export_batch_file_download_finished($success, $results, $operations)
           $_SESSION['oa_export']['download_path'] = $copy;
         }
         else {
-          throw new Exception(t('There was a problem copying the export to !public', array('!public' => $public)));
+          drupal_set_message(t('There was a problem copying the export to !public', array('!public' => $public), 'error'));
+          oa_export_cleanup($_SESSION['oa_export']['directory'], OA_EXPORT_REDIRECT);
         }
 
         // Display a message telling the user the export is done.
@@ -240,34 +232,64 @@ function oa_export_batch_file_download_finished($success, $results, $operations)
           // Messages should already be formatted correctly with t().
           drupal_set_message($message, 'warning');
         }
-      }
-      else {
-        drupal_set_message(t('There was an error creating the export file.'), 'error');
+        if (isset($_SESSION['oa_export']['module'])) {
+          // Just remove the oa_export directory. Doesn't matter if this is a new or existing module. We should have
+          // an archive now so we don't need it.
+          oa_export_cleanup($_SESSION['oa_export']['directory'], OA_EXPORT_REDIRECT);
+        }
       }
     }
     catch (Exception $e) {
       drupal_set_message(t('Error: %message', array('%message' => $e->getMessage())));
+      // If this is a new module it removes the module other wise just removes the oa_export directory, clears session
+      // storage and redirects the user.
+      oa_export_cleanup($_SESSION['oa_export']['directory'], OA_EXPORT_REDIRECT);
     }
   }
   else {
-    throw new Exception(t('The batch export was unsuccessful'));
+    drupal_set_message(t('The batch export was unsuccessful'), 'error');
+    // If this is a new module it removes the module other wise just removes the oa_export directory, clears session
+    // storage and redirects the user.
+    oa_export_cleanup($_SESSION['oa_export']['directory'], OA_EXPORT_REDIRECT);
   }
 }
 
 function oa_export_batch_module_export_finished($success, $results, $operations) {
+  $module_path = drupal_get_path('module', $_SESSION['oa_export']['module']);
+  if ($_SESSION['oa_export']['type'] == 'new') {
+    $export_path = $module_path;
+  }
+  else if ($_SESSION['oa_export']['type'] == 'existing') {
+    $export_path = $module_path . '/' . OA_EXPORT_DIR;
+  }
   if ($success) {
-    // See if we can get the module path this way at this point.
-    // @todo: We can, so maybe store less variables in session?
-    $module_path = drupal_get_path('module', $results['module']);
-    if (isset($results['export_path'])) {
-      // Create a json file to add to the oa_export directory in our module.
-      $file = oa_export_create_json_export('entities', $results['export'], $results['export_path'] . '/oa_export');
+    // Create a json file to add to the oa_export directory in our module.
+    $file = oa_export_create_json_export('entities', $results['export'], $module_path . '/' . OA_EXPORT_DIR);
+    // Make sure the file in place and give the user a message accordingly. If the file was successfully written
+    // then we know the module was created as well.
+    if ($file) {
+      // Let the user know the module was created.
+      drupal_set_message(
+        t('The @module module was created at @location.', array(
+          '@module' => $_SESSION['oa_export']['module'],
+          '@location' => $module_path)
+        ), 'status'
+      );
+      // Give them a brief instructions on what they can do now.
+      $message = 'If you exported the blueprint as a new module then just enable the module on the system you want to import the blueprint to. ';
+      $message .= 'If you exported the blueprint to an existing module, update the existing module on the system you are running the import and run a database update.';
+      drupal_set_message(t($message), 'warning');
+      // Clean up just the session variables.
+      oa_export_cleanup();
+    }
+    else {
+      drupal_set_message(t('Unable to create the file for the entity export!'), 'error');
+      oa_export_cleanup($export_path, OA_EXPORT_REDIRECT);
     }
   }
   else {
-    drupal_set_message(t('The batch finished but something went wrong. Try again or contact your system administrator.'));
-    $dir = ($_SESSION['oa_export']['type'] == 'new') ? $_SESSION['oa_export']['module_path'] ? ($_SESSION['oa_export']['type'] == 'existing') : $_SESSION['oa_export']['module_path'] . '/oa_export' : NULL;
-    oa_export_cleanup($dir, $_SESSION['oa_export']['redirect']);
+    drupal_set_message(t('The batch finished but something went wrong. Try again or contact your system administrator.'), 'error');
+    oa_export_cleanup($export_path, OA_EXPORT_REDIRECT);
   }
 }
 
@@ -292,7 +314,7 @@ function oa_export_batch_file_download_finished_redirect() {
   // Remove the temporary tar file.
   unlink($_SESSION['oa_export']['file']);
 
-  // Clean up.
+  // Clear the session variables we stored.
   oa_export_cleanup();
 
   return $output;
