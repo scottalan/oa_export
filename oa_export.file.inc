@@ -42,18 +42,12 @@ function oa_export_create_json_export($name, $export, $location) {
  *
  * @return bool|string
  */
-function oa_export_create_temp_export_directory($name, $location, $is_module = FALSE) {
+function oa_export_create_temp_export_directory($name, $location) {
   // Format the name of the blueprint for the filename.
   $name = str_replace(' ', '_', strtolower($name));
-  // The name of the directory we are storing the export.
-  if ($is_module) {
-    $dir_name = $location . '/' . $name;
-  }
-  else {
-    $dir_name = $location . '/' . 'oa_export__' . $name . '__' . REQUEST_TIME;
-  }
+  $dir_name = $location . '/' . 'oa_export__' . $name . '__' . REQUEST_TIME;
   // Create our temporary directory.
-  $created = @mkdir($dir_name, 0755, TRUE);
+  $created = @drupal_mkdir($dir_name, 0755, TRUE);
   if ($created) {
     // The name of the directory we will be placing data in for export.
     return $dir_name;
@@ -74,7 +68,7 @@ function oa_export_create_temp_export_directory($name, $location, $is_module = F
  * @return bool|string
  */
 function oa_export_create_directories($path) {
-  $created = @mkdir($path, 0755, TRUE);
+  $created = @drupal_mkdir($path, 0755, TRUE);
   if ($created) {
     return $created;
   }
@@ -105,6 +99,6 @@ function oa_export_remove_directory($dir) {
       }
     }
     reset($objects);
-    @rmdir($dir);
+    @drupal_rmdir($dir);
   }
 }
