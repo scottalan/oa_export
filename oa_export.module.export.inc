@@ -1,10 +1,12 @@
 <?php
 /**
- * @file
- * Exports the blueprint to a module. When the module is enabled the blueprint will be imported.
+ * @file oa_export.module.export.inc
+ * Provides a way to export a blueprint via a new or existing module.
  */
 
-define('OA_EXPORT_DEFAULT_MODULE_PATH', 'sites/all/modules');
+require_once('oa_export.module.install.inc');
+require_once('oa_export.module.info.inc');
+require_once('oa_export.module.module.inc');
 
 /**
  * Form used to export a blueprint to a module.
@@ -45,11 +47,16 @@ function oa_export_generate_module_form($form, &$form_state, $blueprint) {
     '#type' => 'fieldset',
   );
 
-  if ($form['module']['choose']['#default_value'] == 'new') {
-    oa_export_generate_new_module_form($form, $form_state);
+  if (isset($form_state['values'])) {
+    if ($form_state['values']['choose'] == 'new') {
+      oa_export_generate_new_module_form($form, $form_state);
+    }
+    else if ($form_state['values']['choose'] == 'existing') {
+      oa_export_generate_existing_module_form($form, $form_state);
+    }
   }
-  else if ($form['module']['choose']['#default_value'] == 'existing') {
-    oa_export_generate_existing_module_form($form, $form_state);
+  else {
+    oa_export_generate_new_module_form($form, $form_state);
   }
 
   return $form;
@@ -68,6 +75,7 @@ function oa_export_generate_module_form($form, &$form_state, $blueprint) {
  *   The form used to generate a module.
  */
 function oa_export_define_module_callback($form, $form_state) {
+  // For returned for ajax callback.
   return $form['generate_module_form'];
 }
 
@@ -107,7 +115,6 @@ function oa_export_generate_module_form_validate($form, &$form_state) {
  *   A keyed array containing the current state of the form.
  */
 function oa_export_generate_new_module_form(&$form, &$form_state) {
-  $dcc = DRUPAL_CORE_COMPATIBILITY;
   $form['generate_module_form']['name'] = array(
     '#title' => t('Name'),
     '#description' => t('Example: Project Blueprint') . ' (' . t('Do not begin name with numbers.') . ')',
@@ -137,7 +144,7 @@ function oa_export_generate_new_module_form(&$form, &$form_state) {
   );
   $form['generate_module_form']['version'] = array(
     '#title' => t('Version'),
-    '#description' => t('Examples: @examples', array('@examples' => $dcc . '-1.0, ' . $dcc . '-1.0-beta1')),
+    '#description' => t('Examples: @examples', array('@examples' => DRUPAL_CORE_COMPATIBILITY . '-1.0, ' . DRUPAL_CORE_COMPATIBILITY . '-1.0-beta1')),
     '#type' => 'textfield',
     '#required' => FALSE,
     '#default_value' => isset($form_state['input']['version']) ? $form_state['input']['version'] : '',
@@ -157,7 +164,6 @@ function oa_export_generate_new_module_form(&$form, &$form_state) {
     '#type' => 'textfield',
     '#required' => FALSE,
     '#default_value' => isset($form_state['input']['generate_path']) ? $form_state['input']['generate_path'] : '',
-    '#element_validate' => array('oa_export_module_generate_path_validate'),
   );
   $form['generate_module_form']['generate'] = array(
     '#type' => 'submit',
@@ -167,7 +173,7 @@ function oa_export_generate_new_module_form(&$form, &$form_state) {
 }
 
 /**
- * Handles validation on the 'machine_name' form element.
+ * Handles validation on the 'machine_name' form element. Confirms the module name is unique.
  *
  * @param $element
  *   The form element being validated.
@@ -210,25 +216,6 @@ function oa_export_module_version_validate($element, &$form_state, $form) {
 }
 
 /**
- * Handles validation on the 'generate_path' form element.
- *
- * @param $element
- *   The form element being validated.
- * @param $form_state
- *   A keyed array containing the current state of the form.
- * @param $form
- *   An associative array containing the structure of the form.
- */
-function oa_export_module_generate_path_validate($element, &$form_state, $form) {
-  if (!empty($element['#value'])) {
-    $generate_path = DRUPAL_ROOT . '/' . $element['#value'];
-    if (!is_dir($generate_path)) {
-      form_error($element, t('Invalid path, make sure @path is a valid path and you have access to it.', array('@path' => $generate_path)));
-    }
-  }
-}
-
-/**
  * Generates the form for adding the export to an existing module. This one is much simpler. We just need
  * the name of the module we will be adding the export to.
  *
@@ -264,12 +251,20 @@ function oa_export_generate_existing_module_form(&$form, &$form_state) {
  *   An associative array containing the structure of the form.
  */
 function oa_export_existing_module_name_validate($element, &$form_state, $form) {
-  if (!empty($element['#value']) && !module_exists($element['#value'])) {
-    form_error($element, t(
-      'The @name module does not exist.', array(
-        '@name' => $element['#value'],
-      )
-    ));
+  if (empty($element['#value'])) {
+    form_error($element, t('You must enter the machine_name of an existing module.'));
+  }
+  else {
+    // We build the absolute path. The module may be a work in progress and may not be enabled yet so this is the best
+    // way to find it.
+    $module_path = DRUPAL_ROOT . '/' . drupal_get_path('module', $element['#value']);
+    if (!file_exists($module_path)) {
+      form_error($element, t(
+        'The @name module could not be found!.', array(
+          '@name' => $element['#value'],
+        )
+      ));
+    }
   }
 }
 
@@ -282,66 +277,51 @@ function oa_export_existing_module_name_validate($element, &$form_state, $form) 
  *   A keyed array containing the current state of the form.
  */
 function oa_export_generate_new_module_validate($form, &$form_state) {
-
-  // We need to validate that we can create a directory based on the form input.
-  $info = array(
-    'name' => $form_state['values']['name'],
-    'machine_name' => $form_state['values']['machine_name'],
-    'description' => $form_state['values']['description'],
-    'package' => $form_state['values']['package'],
-    'core' => DRUPAL_CORE_COMPATIBILITY,
-    'version' => $form_state['values']['version'],
-  );
-
-  // @todo: Try storing the info array in form state storage.
-  $form_state['storage']['module_info'] = $info;
-
+  $module = $form_state['values']['machine_name'];
   // We will be creating a new module in sites/all/modules.
   if (empty($form_state['values']['generate_path'])) {
-    $module_path = DRUPAL_ROOT . '/' . OA_EXPORT_DEFAULT_MODULE_PATH . '/' . $info['machine_name'];
+    $module_path = DRUPAL_ROOT . '/' . OA_EXPORT_DEFAULT_MODULE_PATH . '/' . $module;
   }
   // Either we are creating a new module at a different path or just adding the export to an existing module.
   else {
     // The path to where the module will be written as defined by the user.
-    $generate_path = $form_state['values']['generate_path'];
-    $module_path = DRUPAL_ROOT . '/' . $form_state['values']['generate_path'];
+    $module_path = DRUPAL_ROOT . '/' . $form_state['values']['generate_path'] . '/'. $module;
   }
-
-  $_SESSION['oa_export'] = array();
-  // Store the module path so we have access after the batch runs.
-  // @todo: See if we can get rid of this by trying to call drupal_get_path('module', MODULE_NAME); in the batch finish function.
-  $_SESSION['oa_export']['module_path'] = $module_path;
-  $_SESSION['oa_export']['module'] = $info['machine_name'];
-  $_SESSION['oa_export']['type'] = 'new';
 
   // We need to create directories and some files. Doing it here so if their creation isn't successful we can throw
   // some errors.
-  if (!oa_export_create_directories($module_path . '/oa_export/files')) {
-    form_set_error(NULL, t("Couldn't create the module: @module_name at the path @module_path. Please check your permissions.", array(
-        '@module_name' => $info['machine_name'],
-        '@module_path' => $module_path,
-      )
-    ));
-  }
-  else {
-    // Set the directory for file export.
-    $_SESSION['oa_export']['files_directory'] = $module_path . '/oa_export/files';
+  if ($files_dir = oa_export_create_directories($module_path . '/' . OA_EXPORT_DIR . '/' . OA_EXPORT_FILES)) {// Start storing data in session.
+    $_SESSION['oa_export'] = array();
+    // Store the module name.
+    $_SESSION['oa_export']['module'] = $module;
+    // Lets us know this is a new module, that they aren't adding the export to an existing module.
+    $_SESSION['oa_export']['type'] = 'new';
+    // This is where files will be stored.
+    $_SESSION['oa_export']['files_directory'] = $files_dir;
+
     // File types used to create a basic module.
     $file_types = array('module', 'info', 'install');
     foreach ($file_types as $extension) {
-      $success = oa_export_create_module_file($module_path, $info, $extension);
+      $success = oa_export_create_module_file($module_path, $form_state, $extension);
       if (!$success) {
-        // Remove the oa_export directory that was created.
-        oa_export_cleanup($module_path);
         // Set a form error.
         form_set_error(NULL, t("Couldn't create the @module_name.@extension file at the path @module_path. Please check your permissions.", array(
             '@extension' => $extension,
-            '@module_name' => $info['machine_name'],
+            '@module_name' => $module,
             '@module_path' => $module_path,
           )
         ));
+        // Remove the oa_export directory that was created.
+        oa_export_cleanup($module_path);
       }
     }
+  }
+  else {
+    form_set_error(NULL, t("Couldn't create the module: @module_name at the path @module_path. Please check your permissions.", array(
+        '@module_name' => $module,
+        '@module_path' => $module_path,
+      )
+    ));
   }
 }
 
@@ -354,39 +334,116 @@ function oa_export_generate_new_module_validate($form, &$form_state) {
  *   A keyed array containing the current state of the form.
  */
 function oa_export_generate_existing_module_validate($form, &$form_state) {
-
-  // Get the path to the existing module.
-  $module_path = drupal_get_path('module', $form_state['values']['generate_path']);
-
-  $_SESSION['oa_export'] = array();
-
-  // Store the module path so we have access after the batch runs.
-  // @todo: See if we can get rid of this by trying to call drupal_get_path('module', MODULE_NAME); in the batch finish function.
-  $_SESSION['oa_export']['module_path'] = $module_path;
-  $_SESSION['oa_export']['module'] = $form_state['values']['generate_path'];
-  $_SESSION['oa_export']['type'] = 'existing';
-
-  // Try to create the oa_export directory. Set an error if we are unsuccessful.
-  if (!oa_export_create_directories($module_path . '/oa_export')) {
-    form_set_error(NULL, t("Couldn't create the oa_export directory in @module_name at the path @module_path. Please check your permissions.", array(
-        '@module_name' => $form_state['values']['generate_path'],
+  $module = $form_state['values']['generate_path'];
+  $blueprint = $form_state['values']['blueprint'];
+  // The path to the existing module.
+  $module_path = DRUPAL_ROOT . '/'. drupal_get_path('module', $module);
+  if (empty($module_path)) {
+    form_set_error(NULL, t("Couldn't find that the @module module at @module_path. Does it exist?.", array(
+        '@module' => $module,
         '@module_path' => $module_path,
       )
     ));
+    oa_export_cleanup(NULL, 'blueprint/export/' . $blueprint);
+  }
+
+  $_SESSION['oa_export'] = array();
+  // Store the name of the module so we have access after the batch runs.
+  $_SESSION['oa_export']['module'] = $module;
+  // Lets us know we are adding the export to an existing module.
+  $_SESSION['oa_export']['type'] = 'existing';
+  // This is where files will be stored.
+  $_SESSION['oa_export']['files_directory'] = $module_path . '/' . OA_EXPORT_DIR . '/' . OA_EXPORT_FILES;
+
+  // Try to create the oa_export directory.
+  $export_dir = oa_export_create_directories($module_path . '/' . OA_EXPORT_DIR);
+  // Set an error if we are unsuccessful.
+  if (!$export_dir) {
+    form_set_error(NULL, t("Couldn't create the @dir directory in @module_name at the path @module_path. Please check your permissions.", array(
+        '@dir' => OA_EXPORT_DIR,
+        '@module_name' => $module,
+        '@module_path' => $module_path,
+      )
+    ));
+    // Remove any session variables that were created.
+    oa_export_cleanup($export_dir, 'blueprint/export/' . $blueprint);
   }
   else {
     // Try to create the files directory.
-    if (!oa_export_create_directories($module_path . '/oa_export/files')) {
+    $files_dir = oa_export_create_directories($export_dir . '/' . OA_EXPORT_FILES);
+    if (!$files_dir) {
+      $blueprint = $form_state['values']['blueprint'];
       // Remove the oa_export directory that was created.
-      oa_export_cleanup($module_path . '/oa_export');
-      form_set_error(NULL, t("Couldn't create a files directory in @module_name/oa_export at the path @module_path. Please check your permissions.", array(
-          '@module_name' => $form_state['values']['generate_path'],
-          '@module_path' => $module_path,
+      form_set_error(NULL, t("Couldn't create a files directory in @dir for the module @module_name. Please check your permissions.", array(
+          '@module_name' => $module,
+          '@dir' => $_SESSION['oa_export']['files_directory'],
         )
       ));
+      oa_export_cleanup($export_dir, 'blueprint/export/' . $blueprint);
+    }
+    else {
+      // File types for a module that we need to update.
+      $file_types = array('info', 'install');
+      foreach ($file_types as $extension) {
+        $success = oa_export_update_existing_module($module_path, $extension, $form_state);
+        if (!$success) {
+          // Remove the oa_export directory that was created.
+          // Set a form error.
+          form_set_error(NULL, t("Couldn't update the contents of the @module_name.@extension file at the path @module_path. Please check your permissions.", array(
+              '@extension' => $extension,
+              '@module_name' => $_SESSION['oa_export']['module'],
+              '@module_path' => $module_path,
+            )
+          ));
+          oa_export_cleanup($module_path . '/' . OA_EXPORT_DIR);
+        }
+      }
     }
   }
+}
 
+/**
+ * Update an existing module for the export.
+ *
+ * @param string $module_path
+ *   The absolute path to the modules location.
+ * @param string $extension
+ *   The extension of the file being created, e.g. module, info, install. Without the ".".
+ * @param $form_state
+ *   A keyed array containing the current state of the form.
+ *
+ * @return bool
+ *   Lets us know if the file was updated successfully.
+ */
+function oa_export_update_existing_module($module_path, $extension, $form_state) {
+  $success = FALSE;
+
+  switch ($extension) {
+    case 'info':
+      $success = oa_export_update_existing_info_file($module_path, $form_state);
+      break;
+
+    case 'module':
+      // Make sure the file exists. Some modules have an install file but it's not required.
+      if (file_exists($module_path . '/' . $form_state['values']['machine_name'] . '.module')) {
+        $success = oa_export_update_existing_module_file($module_path, $form_state);
+      }
+      break;
+
+    case 'install':
+      // Make sure the file exists. Some modules have an install file but it's not required.
+      if (file_exists($module_path . '/' . $form_state['values']['machine_name'] . '.install')) {
+        $success = oa_export_update_existing_install_file($module_path, $form_state);
+      }
+      else {
+        $success = oa_export_create_new_install_file($module_path, $form_state);
+      }
+      break;
+
+    default:
+      break;
+  }
+  return $success;
 }
 
 /**
@@ -398,97 +455,77 @@ function oa_export_generate_existing_module_validate($form, &$form_state) {
  *   A keyed array containing the current state of the form.
  */
 function oa_export_generate_module_form_submit($form, &$form_state) {
-  $current_path = current_path();
-  $blueprint_tid = $form_state['values']['blueprint'];
+  // Load the full blueprint.
+  $blueprint = taxonomy_term_load($form_state['values']['blueprint']);
 
-  $blueprint = taxonomy_term_load($blueprint_tid);
+  // Export the blueprint via batch.
   oa_export_batch_export($blueprint, 'module');
+
   // Redirect the user to the current path.
-  batch_process($current_path);
+  batch_process(current_path());
 }
 
 /**
- * Helper function to create the actual MODULE.module file.
+ * Helper function to create a module file.
  *
  * @param string $module_path
- *   The full 'realpath' to where the module resides.
- * @param array $info
- *   Contains values needed to create the module keyed by keys used to create the MODULE.info file.
+ *   The absolute path to the modules location.
+ * @param array $form_state
+ *   A keyed array containing the current state of the form.
  * @param $extension
  *   The extension of the file being created, e.g. module, info, install.
  *
  * @return bool
  *   Whether the file was successfully created or not.
  */
-function oa_export_create_module_file($module_path, $info, $extension) {
-  $function = 'oa_export_file_content_' . $extension;
-  return $function($module_path, $info);
-}
-
-function oa_export_file_content_module($module_path, $info) {
-  $output = "<?php\n/**\n* @file\n* Drupal needs this blank file.\n*/\n";
-
-  if (file_put_contents($module_path . '/' . $info['machine_name'] . '.module', $output, FILE_APPEND) === FALSE) {
-    return FALSE;
-  }
-  else {
-    return TRUE;
-  }
+function oa_export_create_module_file($module_path, $form_state, $extension) {
+  $function = 'oa_export_create_new_' . $extension . '_file';
+  return $function($module_path, $form_state);
 }
 
 /**
- * Helper function to create the actual MODULE.info file.
+ * Helper function to search a file for a pattern.
  *
- * @param string $module_path
- *   The full 'realpath' to where the module resides.
- * @param array $info
- *   Contains values needed to create the module keyed by keys used to create the MODULE.info file.
+ * @param $path
+ *   The absolute path to the file.
+ * @param $pattern
  *
- * @return bool
- *   Whether the file was successfully created or not.
+ * @return array|bool
+ *   Returns the match if one is found, otherwise FALSE.
  */
-function oa_export_file_content_info($module_path, $info) {
-  $keys = array('name', 'description', 'package', 'core', 'version');
-  $output = '';
-  foreach ($keys as $key) {
-    if (!empty($info[$key])) {
-      $output .= "$key = $info[$key]\n";
+function oa_export_search_file($file, $pattern) {
+  try {
+    if (!file_exists($file)) {
+      throw new Exception(t('The file @file could not be found!', array('@file' => $file)));
+    }
+    $h = fopen($file, 'r');
+    if (!$h) {
+      throw new Exception(t('The file @file could not be opened!', array('@file' => $file)));
+    }
+    else {
+      // Iterate
+      while (($line = fgets($h)) !== false) {
+        preg_match($pattern, $line, $matches);
+        if ($matches) {
+          $results[] = $matches[1];
+        }
+        else {
+          continue;
+        }
+      }
+      fclose($h);
+      // If we have found existing update hooks.
+      if (!empty($results)) {
+        // Get the last update version in the file.
+        return $results;
+      }
+      else {
+        return FALSE;
+      }
     }
   }
-  // We only need a dependency on oa_export for now.
-  $output .= "dependencies[] = oa_export";
-
-  if (file_put_contents($module_path . '/' . $info['machine_name'] . '.info', $output, FILE_APPEND|FILE_TEXT) === FALSE) {
-    return FALSE;
-  }
-  else {
-    return TRUE;
-  }
-}
-
-/**
- * Helper function to create the actual MODULE.install file.
- *
- * @param string $module_path
- *   The full 'realpath' to where the module resides.
- * @param array $info
- *   Contains values needed to create the module keyed by keys used to create the MODULE.info file.
- *
- * @return bool
- *   Whether the file was successfully created or not.
- */
-function oa_export_file_content_install($module_path, $info) {
-  $output = '';
-  $output .= "<?php\n/**\n* @file\n* Install, update and uninstall functions.\n*/\n";
-  $output .= "\n";
-  $output .= "function {$info['machine_name']}_install() {\n";
-  $output .= "  // This should be indented. For code.\n";
-  $output .= "}\n";
-
-  if (file_put_contents($module_path . '/' . $info['machine_name'] . '.install', $output, FILE_APPEND) === FALSE) {
-    return FALSE;
-  }
-  else {
-    return TRUE;
+  catch (Exception $e) {
+    $message = $e->getMessage();
+    drupal_set_message(t($message), 'error');
   }
 }
