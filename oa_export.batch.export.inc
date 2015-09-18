@@ -21,36 +21,36 @@ function oa_export_batch_export($blueprint, $export_type = 'file') {
 
       // Store the export directory in the session variable.
       if ($_SESSION['oa_export']['directory'] = oa_export_create_temp_export_directory($blueprint->name, file_directory_temp())) {
-
         // Create the file directory.
-        if (!oa_export_create_directories($_SESSION['oa_export']['directory'] . '/' . OA_EXPORT_FILES)) {
-          // Make sure we successfully create a directory for exporting files.
-          drupal_set_message(t('Could not create @files', array('@files' => $_SESSION['oa_export']['directory'] . '/' . OA_EXPORT_FILES)), 'error');
+        $file_dir = oa_export_create_directories($_SESSION['oa_export']['directory'] . '/' . OA_EXPORT_FILES);
+        if ($file_dir) {
+          // Store the files directory in session. It is needed later when copying files.
+          $_SESSION['oa_export']['files_directory'] = $file_dir;
+
+          // Temporary directory for system. Gets the path of system-appropriate temporary directory.
+          $tmp_dir = file_directory_temp();
+          if (!is_writable($tmp_dir)) {
+            drupal_set_message(t('In order for this export to work "%dir" needs to be writable.', array('%dir' => $tmp_dir)), 'error');
+            oa_export_cleanup($_SESSION['oa_export']['directory'], OA_EXPORT_REDIRECT);
+          }
+
+          $batch = array(
+            'title' => t('Blueprint Download'),
+            'init_message' => t('Preparing to download "!name" blueprint to a file.', array('!name' => $blueprint->name)),
+            'finished' => 'oa_export_batch_file_download_finished',
+          );
+
+          // Defines batch operations for the batch.
+          oa_export_batch_export_operations($batch, $blueprint);
+
+          batch_set($batch);
+          // Redirect the user to a page to download the file.
+          batch_process('oa_export/download');
+        }
+        else {
+          drupal_set_message(t('Could not create @file_dir', array('@file_dir' => $file_dir)), 'error');
           oa_export_cleanup($_SESSION['oa_export']['directory'], OA_EXPORT_REDIRECT);
         }
-
-        // Store the files directory in session. It is needed later when copying files.
-        $_SESSION['oa_export']['files_directory'] = $_SESSION['oa_export']['directory'] . '/' . OA_EXPORT_FILES;
-
-        // Temporary directory for system. Gets the path of system-appropriate temporary directory.
-        $tmp_dir = file_directory_temp();
-        if (!is_writable($tmp_dir)) {
-          drupal_set_message(t('In order for this export to work "%dir" needs to be writable.', array('%dir' => $tmp_dir)), 'error');
-          oa_export_cleanup($_SESSION['oa_export']['directory'], OA_EXPORT_REDIRECT);
-        }
-
-        $batch = array(
-          'title' => t('Blueprint Download'),
-          'init_message' => t('Preparing to download "!name" blueprint to a file.', array('!name' => $blueprint->name)),
-          'finished' => 'oa_export_batch_file_download_finished',
-        );
-
-        // Defines batch operations for the batch.
-        oa_export_batch_export_operations($batch, $blueprint);
-
-        batch_set($batch);
-        // Redirect the user to a page to download the file.
-        batch_process('oa_export/download');
       }
       else {
         drupal_set_message(t('Could not create a directory in your system temporary directory.'), 'error');
