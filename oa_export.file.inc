@@ -70,7 +70,7 @@ function oa_export_create_temp_export_directory($name, $location) {
 function oa_export_create_directories($path) {
   $created = @drupal_mkdir($path, 0755, TRUE);
   if ($created) {
-    return $created;
+    return $path;
   }
   else {
     drupal_set_message(t('The path @path could not be created.', array('@path' => $path)));
