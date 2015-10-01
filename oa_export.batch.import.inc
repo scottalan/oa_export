@@ -6,10 +6,13 @@ require_once 'oa_export.extras.import.inc';
 /**
  * Prepare the import and create a batch process.
  *
- * @param object $file
+ * @param object $data
  *   The file that contains the export data.
+ * @param string $import_type
+ *   Defaults to 'file' but could also be 'module'. This will allow to define different types of exports when
+ *   triggering an import.
  */
-function oa_export_batch_import($file) {
+function oa_export_batch_import($data, $import_type = 'file') {
 
   $batch = array(
     'title' => t('Importing Blueprint'),
@@ -18,8 +21,19 @@ function oa_export_batch_import($file) {
     'file' => drupal_get_path('module', 'oa_export') . '/oa_export.batch.import.inc',
   );
 
-  // Import the space first.
-  oa_export_batch_import_operations($batch, $file);
+  switch ($import_type) {
+    case 'file':
+      // Define batch operations.
+      oa_export_batch_file_download_operations($batch, $data);
+      break;
+
+    case 'module':
+      oa_export_batch_module_import_operations($batch, $data);
+      break;
+
+    default:
+      break;
+  }
 
   // Define the batch. The batch is automatically processed since it is
   // triggered by a form submission.
@@ -34,20 +48,38 @@ function oa_export_batch_import($file) {
  * @param object $file
  *   The file that contains the export data.
  */
-function oa_export_batch_import_operations(&$batch, $file) {
+function oa_export_batch_file_download_operations(&$batch, $file) {
 
   // Extracts the archive.
   $batch['operations'][] = array('_oa_export_batch_import_archive', array($file));
 
+  oa_export_batch_combined_operations($batch);
+}
+
+/**
+ * Defines batch operations for the batch.
+ *
+ * @param array $batch
+ *   The current batch.
+ * @param object $data
+ *   The export data.
+ */
+function oa_export_batch_module_import_operations(&$batch, $path) {
+
+  // Extracts the archive.
+  $batch['operations'][] = array('_oa_export_batch_import_module_data', array($path));
+
+  oa_export_batch_combined_operations($batch);
+}
+
+function oa_export_batch_combined_operations(&$batch) {
   // Imports the entities.
   $batch['operations'][] = array('_oa_export_batch_import_entities', array());
-
   // Imports menus. @todo: Fix this...
 //  $batch['operations'][] = array('_oa_export_batch_import_menus', array());
 
   // Imports group metadata such as roles and permissions. @todo: Fix this...
 //  $batch['operations'][] = array('_oa_export_batch_import_metadata', array());
-
 }
 
 /**
@@ -104,6 +136,40 @@ function _oa_export_batch_import_archive($file, &$context) {
 
   // Store the location we will be extracting the file contents to.
   $_SESSION['oa_export']['extract_location'] = $extraction_location;
+
+  // Bump the progress indicator.
+  $context['sandbox']['progress']++;
+
+  // We are finished un-archiving the entities.
+  $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
+}
+
+/**
+ * Extract the file being imported and store the entities in the batch context.
+ *
+ * @param string $path
+ *   The realpath to the oa_export directory in the module.
+ * @param array $context
+ *   Passed around between batch operations.
+ * @throws Exception
+ *
+ * @see update_manager_archive_extract().
+ */
+function _oa_export_batch_import_module_data($path, &$context) {
+
+  if (empty($context['sandbox']['max'])) {
+    $context['sandbox']['progress'] = 0;
+    $context['sandbox']['max'] = 1;
+    $context['results']['total'] = (!empty($context['results']['total']) ? $context['results']['total'] : 0) + $context['sandbox']['max'];
+  }
+
+  // This is where the import looks for files.
+  $_SESSION['oa_export']['extract_location'] = $path;
+
+  // Decode the json file and store the entities for the batch.
+  $context['results']['entities'] = oa_export_import_decode_data($path . '/oa_export/entities.json');
+  // Will store a map for new entity ids.
+  $context['results']['map'] = array();
 
   // Bump the progress indicator.
   $context['sandbox']['progress']++;

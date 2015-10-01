@@ -35,65 +35,63 @@ function oa_export_create_json_export($name, $export, $location) {
  *
  * @param string $name
  *  The name of the blueprint.
+ * @param string $location
+ *   Where the temporary directory will be created.
+ * @param bool $is_module
+ *   Whether this is a module or just a file download.
+ *
  * @return bool|string
  */
-function oa_export_create_temp_directory($name) {
+function oa_export_create_temp_export_directory($name, $location) {
   // Format the name of the blueprint for the filename.
   $name = str_replace(' ', '_', strtolower($name));
-  // The name of the directory we are storing the export.
-  $dir_name = sys_get_temp_dir() . '/' . 'oa_export_' . $name . '_' . REQUEST_TIME;
+  $dir_name = $location . '/' . 'oa_export__' . $name . '__' . REQUEST_TIME;
   // Create our temporary directory.
-  $created = @mkdir($dir_name, 0755, TRUE);
+  $created = @drupal_mkdir($dir_name, 0755, TRUE);
   if ($created) {
     // The name of the directory we will be placing data in for export.
     return $dir_name;
   }
   else {
     // Something happened and the directory couldn't be created.
-    // @todo: Handle this as an exception.
+    drupal_set_message(t('The @dir directory could not be created.', array('@dir' => $dir_name)), 'error');
     return FALSE;
   }
 
 }
 
 /**
- * Helper function to create subdirectories.
+ * Helper function to create directories.
  *
- * @param string $parent
- *  The full path to the parent directory.
- * @param string $child
- *  The name of the sub directory you want to create.
+ * @param string $path
+ *  The full path to the directory or directories you want to create.
  * @return bool|string
  */
-function oa_export_create_sub_directory($parent, $child) {
-  // The sub directory path.
-  $sub_dir = $parent . '/' . $child;
-  // Create our child directory.
-  $created = @mkdir($sub_dir, 0755, TRUE);
+function oa_export_create_directories($path) {
+  $created = @drupal_mkdir($path, 0755, TRUE);
   if ($created) {
-    return $sub_dir;
+    return $path;
   }
   else {
-    // Something happened and the directory couldn't be created.
-    // @todo: Handle this as an exception.
+    drupal_set_message(t('The path @path could not be created.', array('@path' => $path)));
     return FALSE;
   }
 
 }
 
 /**
- * Removes the temporary directory we created at the beginning of the export.
+ * Removes a directory recursively along with any files it may contain that was created during the export.
  *
  * @param string $dir
  *   The path to the directory.
  */
-function oa_export_remove_temp_directory($dir) {
+function oa_export_remove_directory($dir) {
   if (is_dir($dir)) {
     $objects = scandir($dir);
     foreach ($objects as $object) {
       if ($object != "." && $object != "..") {
         if (filetype($dir."/".$object) == "dir") {
-          oa_export_remove_temp_directory($dir."/".$object);
+          oa_export_remove_directory($dir."/".$object);
         }
         else {
           unlink($dir."/".$object);
@@ -101,6 +99,6 @@ function oa_export_remove_temp_directory($dir) {
       }
     }
     reset($objects);
-    @rmdir($dir);
+    @drupal_rmdir($dir);
   }
 }
