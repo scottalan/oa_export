@@ -13,6 +13,8 @@ require_once('oa_export.module.module.inc');
  *
  * @param array $form
  *   Empty form array.
+ * @param $form_state
+ *   A keyed array containing the current state of the form.
  * @param object $blueprint
  *   The fully loaded blueprint entity.
  *
@@ -36,10 +38,11 @@ function oa_export_generate_module_form($form, &$form_state, $blueprint) {
     '#ajax' => array(
       'callback' => 'oa_export_define_module_callback',
       'wrapper' => 'generate-module-form',
-      'methos' => 'replace',
+      'method' => 'replace',
       'effect' => 'fade',
     ),
   );
+
   $form['generate_module_form'] = array(
     '#title' => '',
     '#prefix' => '<div id="generate-module-form">',
@@ -47,19 +50,45 @@ function oa_export_generate_module_form($form, &$form_state, $blueprint) {
     '#type' => 'fieldset',
   );
 
+  $form['actions']['process'] = array(
+    '#type' => 'submit',
+    '#value' => t('Generate Module'),
+    '#name' => 'other',
+    '#ajax' => array(
+      'callback' => 'oa_export_create_module_callback',
+      'wrapper' => 'generate-module-form',
+    ),
+  );
+
   if (isset($form_state['values'])) {
     if ($form_state['values']['choose'] == 'new') {
+      $form['actions']['process']['#validate'][] = 'oa_export_generate_new_module_validate';
       oa_export_generate_new_module_form($form, $form_state);
     }
     else if ($form_state['values']['choose'] == 'existing') {
+      $form['actions']['process']['#validate'][] = 'oa_export_generate_existing_module_validate';
       oa_export_generate_existing_module_form($form, $form_state);
     }
   }
   else {
+    $form['actions']['process']['#validate'][] = 'oa_export_generate_new_module_validate';
     oa_export_generate_new_module_form($form, $form_state);
   }
 
   return $form;
+}
+
+function oa_export_create_module_callback($form, &$form_state) {
+  if (form_get_errors()) {
+    $form_state['rebuild'] = TRUE;
+    $commands = array();
+    $commands[] = ajax_command_prepend(NULL, theme('status_messages'));
+    return array('#type' => 'ajax', '#commands' => $commands);
+  }
+  else {
+    $system_message = drupal_get_messages();
+    return t('Thank you for your submission!');
+  }
 }
 
 /**
@@ -88,22 +117,7 @@ function oa_export_define_module_callback($form, $form_state) {
  *   A keyed array containing the current state of the form.
  */
 function oa_export_generate_module_form_validate($form, &$form_state) {
-  // Seems like the best way to determine which form needs what validation.
-  switch ($form_state['triggering_element']['#name']) {
-    case 'choose':
-      break;
 
-    case 'new_module':
-      oa_export_generate_new_module_validate($form, $form_state);
-      break;
-
-    case 'existing_module':
-      oa_export_generate_existing_module_validate($form, $form_state);
-      break;
-
-    default:
-      break;
-  }
 }
 
 /**
@@ -164,11 +178,6 @@ function oa_export_generate_new_module_form(&$form, &$form_state) {
     '#type' => 'textfield',
     '#required' => FALSE,
     '#default_value' => isset($form_state['input']['generate_path']) ? $form_state['input']['generate_path'] : '',
-  );
-  $form['generate_module_form']['generate'] = array(
-    '#type' => 'submit',
-    '#value' => t('Generate module'),
-    '#name' => 'new_module',
   );
 }
 
@@ -233,11 +242,15 @@ function oa_export_generate_existing_module_form(&$form, &$form_state) {
     '#default_value' => isset($form_state['input']['generate_path']) ? $form_state['input']['generate_path'] : '',
     '#element_validate' => array('oa_export_existing_module_name_validate'),
   );
-  $form['generate_module_form']['generate'] = array(
-    '#type' => 'submit',
-    '#value' => t('Add export to module'),
-    '#name' => 'existing_module',
-  );
+//  $form['generate_module_form']['generate'] = array(
+//    '#type' => 'submit',
+//    '#value' => t('Add export to module'),
+//    '#name' => 'existing_module',
+//    '#ajax' => array(
+//      'callback' => 'oa_export_create_module_callback',
+//      'wrapper' => 'generate-module-form',
+//    ),
+//  );
 }
 
 /**
@@ -290,7 +303,8 @@ function oa_export_generate_new_module_validate($form, &$form_state) {
 
   // We need to create directories and some files. Doing it here so if their creation isn't successful we can throw
   // some errors.
-  if ($files_dir = oa_export_create_directories($module_path . '/' . OA_EXPORT_DIR . '/' . OA_EXPORT_FILES)) {// Start storing data in session.
+  if ($files_dir = oa_export_create_directories($module_path . '/' . OA_EXPORT_DIR . '/' . OA_EXPORT_FILES)) {
+    // Start storing data in session.
     $_SESSION['oa_export'] = array();
     // Store the module name.
     $_SESSION['oa_export']['module'] = $module;
@@ -312,7 +326,7 @@ function oa_export_generate_new_module_validate($form, &$form_state) {
           )
         ));
         // Remove the oa_export directory that was created.
-        oa_export_cleanup($module_path);
+//        oa_export_cleanup($module_path);
       }
     }
   }
@@ -344,7 +358,7 @@ function oa_export_generate_existing_module_validate($form, &$form_state) {
         '@module_path' => $module_path,
       )
     ));
-    oa_export_cleanup(NULL, 'blueprint/export/' . $blueprint);
+//    oa_export_cleanup(NULL, 'blueprint/export/' . $blueprint);
   }
 
   $_SESSION['oa_export'] = array();
@@ -366,7 +380,7 @@ function oa_export_generate_existing_module_validate($form, &$form_state) {
       )
     ));
     // Remove any session variables that were created.
-    oa_export_cleanup($export_dir, 'blueprint/export/' . $blueprint);
+//    oa_export_cleanup($export_dir, 'blueprint/export/' . $blueprint);
   }
   else {
     // Try to create the files directory.
@@ -379,7 +393,7 @@ function oa_export_generate_existing_module_validate($form, &$form_state) {
           '@dir' => $_SESSION['oa_export']['files_directory'],
         )
       ));
-      oa_export_cleanup($export_dir, 'blueprint/export/' . $blueprint);
+//      oa_export_cleanup($export_dir, 'blueprint/export/' . $blueprint);
     }
     else {
       // File types for a module that we need to update.
@@ -387,19 +401,18 @@ function oa_export_generate_existing_module_validate($form, &$form_state) {
       foreach ($file_types as $extension) {
         $success = oa_export_update_existing_module($module_path, $extension, $form_state);
         if (!$success) {
-          // Remove the oa_export directory that was created.
-          // Set a form error.
           form_set_error(NULL, t("Couldn't update the contents of the @module_name.@extension file at the path @module_path. Please check your permissions.", array(
               '@extension' => $extension,
               '@module_name' => $_SESSION['oa_export']['module'],
               '@module_path' => $module_path,
             )
           ));
-          oa_export_cleanup($module_path . '/' . OA_EXPORT_DIR);
+//          oa_export_cleanup($module_path . '/' . OA_EXPORT_DIR);
         }
       }
     }
   }
+  form_set_error(NULL, t('Some error'));
 }
 
 /**
@@ -425,14 +438,14 @@ function oa_export_update_existing_module($module_path, $extension, $form_state)
 
     case 'module':
       // Make sure the file exists. Some modules have an install file but it's not required.
-      if (file_exists($module_path . '/' . $form_state['values']['machine_name'] . '.module')) {
+      if (file_exists($module_path . '/' . $form_state['values']['generate_path'] . '.module')) {
         $success = oa_export_update_existing_module_file($module_path, $form_state);
       }
       break;
 
     case 'install':
       // Make sure the file exists. Some modules have an install file but it's not required.
-      if (file_exists($module_path . '/' . $form_state['values']['machine_name'] . '.install')) {
+      if (file_exists($module_path . '/' . $form_state['values']['generate_path'] . '.install')) {
         $success = oa_export_update_existing_install_file($module_path, $form_state);
       }
       else {
@@ -455,18 +468,31 @@ function oa_export_update_existing_module($module_path, $extension, $form_state)
  *   A keyed array containing the current state of the form.
  */
 function oa_export_generate_module_form_submit($form, &$form_state) {
-  // Load the full blueprint.
-  $blueprint = taxonomy_term_load($form_state['values']['blueprint']);
 
-  // Export the blueprint via batch.
-  oa_export_batch_export($blueprint, 'module');
+  if (form_get_errors()) {
+    $form_state['rebuild'] = TRUE;
+    return $form;
+  }
+  $errors = form_get_errors();
 
-  // Redirect the user to the current path.
-  batch_process(current_path());
+  if (!form_get_errors()) {
+    // Load the full blueprint.
+    $blueprint = taxonomy_term_load($form_state['values']['blueprint']);
+
+    // Export the blueprint via batch.
+    oa_export_batch_export($blueprint, 'module');
+
+    // Redirect the user to the current path.
+    batch_process(current_path());
+  }
+  else {
+    $element = $form['generate_module_form'];
+    return $element;
+  }
 }
 
 /**
- * Helper function to create a module file.
+ * Helper function to create a new file for a module.
  *
  * @param string $module_path
  *   The absolute path to the modules location.
@@ -507,7 +533,8 @@ function oa_export_search_file($file, $pattern) {
       while (($line = fgets($h)) !== false) {
         preg_match($pattern, $line, $matches);
         if ($matches) {
-          $results[] = $matches[1];
+          $results[] = $matches[0];
+          break;
         }
         else {
           continue;

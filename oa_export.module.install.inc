@@ -57,7 +57,7 @@ function oa_export_create_new_install_file($module_path, $form_state) {
  *    Whether the file was successfully written to..
  */
 function oa_export_update_existing_install_file($module_path, $form_state) {
-  $module_name = $form_state['values']['machine_name'];
+  $module_name = $form_state['values']['generate_path'];
   $file = $module_path . '/' . $module_name . '.install';
   // We need to find out if there are any existing update hooks.
   // Find out what update, if any, the module has run so we can get the next hook_update_N() version.
@@ -83,7 +83,8 @@ function oa_export_update_existing_install_file($module_path, $form_state) {
     }
     else {
       // We didn't find hook_install(). Let's check for existing updates.
-      // Pattern used to find implementations of hook_update_N().
+      // Pattern used to find implementations of hook_update_N(). Using a pattern here instead of relying on what Drupal
+      // found for a schema version in case the module isn't enabled yet.
       $pattern = "/function " . $module_name . "_update_([0-9]{4})\(\) {/";
       // Search the install file for implementations of hook_update_N().
       if ($results = oa_export_search_file($file, $pattern)) {
@@ -95,6 +96,7 @@ function oa_export_update_existing_install_file($module_path, $form_state) {
         return oa_export_write_update_hook($module_path, $module_name, $new_version);
       }
     }
+    return TRUE;
   }
 }
 
@@ -112,7 +114,7 @@ function oa_export_update_existing_install_file($module_path, $form_state) {
  */
 function oa_export_write_hook_install($module_path, $module_name, $version) {
   $output = '';
-  $output .= "\n/**\n* @file\n* Install, update and uninstall functions.\n*/\n";
+  $output .= "<?php\n/**\n* @file\n* Install, update and uninstall functions.\n*/\n";
   $output .= "\n";
   $output .= "/**\n* Implements hook_install().\n*/\n";
   $output .= "function {$module_name}_install() {\n";
@@ -129,6 +131,8 @@ function oa_export_write_hook_install($module_path, $module_name, $version) {
 }
 
 /**
+ * Writes an update hook for the MODULE.install file.
+ *
  * @param string $module_path
  *   The absolute path to the modules location.
  * @param array $module_name

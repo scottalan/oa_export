@@ -63,18 +63,18 @@ function oa_export_create_new_info_file($module_path, $form_state) {
  * @return bool
  */
 function oa_export_update_existing_info_file($module_path, $form_state) {
-  $file = $module_path . '/' . $form_state['values']['machine_name'] . '.info';
+  $file = $module_path . '/' . $form_state['values']['generate_path'] . '.info';
   // Check first to see if the module has an info file. It may not exist or just be an empty file.
   if (!file_exists($file) || filesize($file) == 0) {
     oa_export_create_new_info_file($module_path, $form_state);
   }
   else {
     // Pattern to search for.
-    $pattern = "/dependencies[] = oa_export/";
+    $pattern = "/dependencies\[\] = oa_export/";
     // Check for "dependencies[] = oa_export" line in the info file
     if (!oa_export_search_file($file, $pattern)) {
       // We need to add a dependency on oa_export.
-      $output = 'dependencies[] = oa_export';
+      $output = "\ndependencies[] = oa_export";
       // Add the line to the info file.
       if (file_put_contents($file, $output, FILE_APPEND|FILE_TEXT) === FALSE) {
         return FALSE;
@@ -82,6 +82,10 @@ function oa_export_update_existing_info_file($module_path, $form_state) {
       else {
         return TRUE;
       }
+    }
+    else {
+      // The module already has a dependency on oa_export.
+      return TRUE;
     }
   }
 }
