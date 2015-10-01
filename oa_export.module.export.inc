@@ -53,11 +53,6 @@ function oa_export_generate_module_form($form, &$form_state, $blueprint) {
   $form['actions']['process'] = array(
     '#type' => 'submit',
     '#value' => t('Generate Module'),
-    '#name' => 'other',
-    '#ajax' => array(
-      'callback' => 'oa_export_create_module_callback',
-      'wrapper' => 'generate-module-form',
-    ),
   );
 
   if (isset($form_state['values'])) {
