@@ -8,10 +8,42 @@
  */
 
 /**
+ * Converts a PHP variable into its JavaScript equivalent.
+ *
+ * We use HTML-safe strings, with several characters escaped.
+ *
+ * COPIED FROM common.inc but added JSON_PRETTY_PRINT option
+ *
+ * @see drupal_json_decode()
+ * @see drupal_json_encode_helper()
+ * @ingroup php_wrappers
+ */
+function drupal_json_pretty_print($var) {
+  // The PHP version cannot change within a request.
+  static $php530;
+
+  if (!isset($php530)) {
+    $php530 = version_compare(PHP_VERSION, '5.3.0', '>=');
+  }
+
+  if ($php530) {
+    // Encode <, >, ', &, and " using the json_encode() options parameter.
+    return json_encode($var, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_PRETTY_PRINT);
+  }
+
+  // json_encode() escapes <, >, ', &, and " using its options parameter, but
+  // does not support this parameter prior to PHP 5.3.0.  Use a helper instead.
+  include_once DRUPAL_ROOT . '/includes/json-encode.inc';
+  return drupal_json_encode_helper($var);
+}
+
+
+
+/**
  * Export callback.
  */
 function oa_export_json_export($export) {
-  return drupal_json_encode(oa_export_json_encode_objects($export));
+  return drupal_json_pretty_print(oa_export_json_encode_objects($export));
 }
 
 /**
