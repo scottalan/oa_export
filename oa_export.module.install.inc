@@ -25,22 +25,23 @@ function oa_export_get_new_schema_version($version = 0) {
 /**
  * Creates a new install file for a module.
  *
- * @param string $module_path
- *   The absolute path to the modules location.
+ * @param $form
+ *   An associative array containing the structure of the form.
  * @param $form_state
  *   A keyed array containing the current state of the form.
  *
  * @return bool
  *   Whether the file was successfully created or not.
  */
-function oa_export_create_new_install_file($module_path, $form_state) {
-  $module_name = $form_state['values']['machine_name'];
+function oa_export_create_new_install_file($form, $form_state) {
+  $module_name = $form['#module_name'];
+  $filename = $form['#module_file'];
   // The schema version to use for hook_update_N().
   $version = oa_export_get_new_schema_version();
   // Write an implementation of hook_install().
-  if ($success = oa_export_write_hook_install($module_path, $module_name, $version)) {
+  if ($success = oa_export_write_hook_install($filename, $module_name, $version)) {
     // Write an implementation of hook_update_N().
-    $success = oa_export_write_update_hook($module_path, $module_name, $version);
+    $success = oa_export_write_update_hook($filename, $module_name, $version);
   }
   return $success;
 }
@@ -48,37 +49,38 @@ function oa_export_create_new_install_file($module_path, $form_state) {
 /**
  * Reads through an existing install file so we better know how to write our changes to it.
  *
- * @param string $module_path
- *   The absolute path to the modules location.
+ * @param $form
+ *   An associative array containing the structure of the form.
  * @param $form_state
  *   A keyed array containing the current state of the form.
  *
  * @return bool
  *    Whether the file was successfully written to..
  */
-function oa_export_update_existing_install_file($module_path, $form_state) {
-  $module_name = $form_state['values']['generate_path'];
-  $file = $module_path . '/' . $module_name . '.install';
+function oa_export_update_existing_install_file($form, $form_state) {
+  $module_name = $form['#module_name'];
+  $filename = $form['#module_file'];
+
   // We need to find out if there are any existing update hooks.
   // Find out what update, if any, the module has run so we can get the next hook_update_N() version.
   include_once(DRUPAL_ROOT . '/includes/install.inc');
   $schema_version = drupal_get_installed_schema_version($module_name);
 
   // Check first to see if the module has an install file. It may not exist or just be an empty file.
-  if (!file_exists($file) || filesize($file) == 0) {
-    oa_export_create_new_install_file($module_path, $form_state);
+  if (!file_exists($filename) || filesize($filename) == 0) {
+    oa_export_create_new_install_file($form, $form_state);
   }
   // The file exists and isn't empty.
   else {
     // Pattern used to find hook_install().
     $pattern = "/function " . $module_name . "_install\(\) {/";
     // Search the install file for an implementation of hook_install().
-    if ($result = oa_export_search_file($file, $pattern)) {
+    if ($result = oa_export_search_file($filename, $pattern)) {
       // Check to see the schema version is greater than 0. This lets us know if the module is enabled and the install
       // file contains no previous update hooks. We can just add a new update hook.
       if ($schema_version > SCHEMA_INSTALLED) {
         $new_version = oa_export_get_new_schema_version();
-        return oa_export_write_update_hook($module_path, $module_name, $new_version);
+        return oa_export_write_update_hook($filename, $module_name, $new_version);
       }
     }
     else {
@@ -87,13 +89,13 @@ function oa_export_update_existing_install_file($module_path, $form_state) {
       // found for a schema version in case the module isn't enabled yet.
       $pattern = "/function " . $module_name . "_update_([0-9]{4})\(\) {/";
       // Search the install file for implementations of hook_update_N().
-      if ($results = oa_export_search_file($file, $pattern)) {
+      if ($results = oa_export_search_file($filename, $pattern)) {
         // Get the latest version returned from the file.
         $latest_version = end($results);
         // Get the new version.
         $new_version = oa_export_get_new_schema_version($latest_version);
         // Write the update hook to the install file.
-        return oa_export_write_update_hook($module_path, $module_name, $new_version);
+        return oa_export_write_update_hook($filename, $module_name, $new_version);
       }
     }
     return TRUE;
@@ -103,8 +105,8 @@ function oa_export_update_existing_install_file($module_path, $form_state) {
 /**
  * Helper function to create the actual MODULE.install file.
  *
- * @param string $module_path
- *   The absolute path to the modules location.
+ * @param string $filename
+ *   The absolute path and file name for the file.
  * @param array $module_name
  *   The machine_name of the module.
  * @param int $version
@@ -112,7 +114,7 @@ function oa_export_update_existing_install_file($module_path, $form_state) {
  * @return bool
  *   Whether the file contents were successfully written or not.
  */
-function oa_export_write_hook_install($module_path, $module_name, $version) {
+function oa_export_write_hook_install($filename, $module_name, $version) {
   $output = '';
   $output .= "<?php\n/**\n* @file\n* Install, update and uninstall functions.\n*/\n";
   $output .= "\n";
@@ -122,7 +124,7 @@ function oa_export_write_hook_install($module_path, $module_name, $version) {
   $output .= "  {$module_name}_update_{$version}();\n";
   $output .= "}\n";
 
-  if (file_put_contents($module_path . '/' . $module_name . '.install', $output, FILE_APPEND) === FALSE) {
+  if (file_put_contents($filename, $output, FILE_APPEND) === FALSE) {
     return FALSE;
   }
   else {
@@ -133,8 +135,8 @@ function oa_export_write_hook_install($module_path, $module_name, $version) {
 /**
  * Writes an update hook for the MODULE.install file.
  *
- * @param string $module_path
- *   The absolute path to the modules location.
+ * @param string $filename
+ *   The absolute path and file name for the file.
  * @param array $module_name
  *   The machine_name of the module.
  * @param $version
@@ -142,7 +144,7 @@ function oa_export_write_hook_install($module_path, $module_name, $version) {
  * @return bool
  *   Whether the file contents were successfully written or not.
  */
-function oa_export_write_update_hook($module_path, $module_name, $version) {
+function oa_export_write_update_hook($filename, $module_name, $version) {
   $output = "";
   $output .= "\n/**\n* Implements hook_update_N().\n* Imports a blueprint.\n*/\n";
   $output .= "function {$module_name}_update_{$version}() {\n";
@@ -156,7 +158,7 @@ function oa_export_write_update_hook($module_path, $module_name, $version) {
   $output .= "  }\n";
   $output .= "}\n";
 
-  if (file_put_contents($module_path . '/' . $module_name . '.install', $output, FILE_APPEND) === FALSE) {
+  if (file_put_contents($filename, $output, FILE_APPEND) === FALSE) {
     return FALSE;
   }
   else {

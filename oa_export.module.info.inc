@@ -25,17 +25,18 @@ function oa_export_new_module_info($form_state) {
 /**
  * Helper function to create the actual MODULE.info file.
  *
- * @param string $module_path
- *   The absolute path to the modules location.
+ * @param $form
+ *   An associative array containing the structure of the form.
  * @param $form_state
  *   A keyed array containing the current state of the form.
  *
  * @return bool
  *   Whether the file was successfully created or not.
  */
-function oa_export_create_new_info_file($module_path, $form_state) {
+function oa_export_create_new_info_file($form, $form_state) {
   // Data the will be written to the info file.
   $info = oa_export_new_module_info($form_state);
+  $filename = $form['#module_file'];
   $output = '';
   foreach ($info as $k => $v) {
     $output .= "$k = $v\n";
@@ -44,7 +45,7 @@ function oa_export_create_new_info_file($module_path, $form_state) {
   $output .= "dependencies[] = oa_export";
 
   // Write the info file.
-  if (file_put_contents($module_path . '/' . $form_state['values']['machine_name'] . '.info', $output, FILE_APPEND|FILE_TEXT) === FALSE) {
+  if (file_put_contents($filename, $output, FILE_APPEND|FILE_TEXT) === FALSE) {
     return FALSE;
   }
   else {
@@ -55,18 +56,18 @@ function oa_export_create_new_info_file($module_path, $form_state) {
 /**
  * Updates an existing info file.
  *
- * @param string $module_path
- *   The absolute path to the modules location.
+ * @param $form
+ *   An associative array containing the structure of the form.
  * @param $form_state
  *   A keyed array containing the current state of the form.
  *
  * @return bool
  */
-function oa_export_update_existing_info_file($module_path, $form_state) {
-  $file = $module_path . '/' . $form_state['values']['generate_path'] . '.info';
+function oa_export_update_existing_info_file($form, $form_state) {
+  $file = $form['#module_file'];
   // Check first to see if the module has an info file. It may not exist or just be an empty file.
   if (!file_exists($file) || filesize($file) == 0) {
-    oa_export_create_new_info_file($module_path, $form_state);
+    oa_export_create_new_info_file($form, $form_state);
   }
   else {
     // Pattern to search for.
