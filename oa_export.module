@@ -201,7 +201,7 @@ function oa_export_validate_directory() {
   }
 }
 
-function oa_export_remove_missing_entity(&$entity, $entity_type, $field_name, &$results) {
+function oa_export_remove_missing_entity($entity, $entity_type, $field_name, &$results) {
   list($entity_id) = entity_extract_ids($entity_type, $entity);
   $field_info = field_info_field($field_name);
   if (isset($results['export'][$entity_type . ':' . $entity_id])) {

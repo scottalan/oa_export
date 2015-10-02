@@ -49,7 +49,7 @@ function oa_export_entity_export($entity_type, $entity, &$results) {
  *
  * @todo: Do we want to export users that created the node?
  */
-function oa_export_oa_export_entity_node(&$entity, &$results) {
+function oa_export_oa_export_entity_node($entity, &$results) {
   $results['export']['node:' . $entity->nid] = $entity;
 }
 
@@ -62,7 +62,7 @@ function oa_export_oa_export_entity_node(&$entity, &$results) {
  *   The $batch['context']['results'] used to store the entities throughout
  *   the batch process.
  */
-function oa_export_oa_export_entity_paragraphs_item(&$entity, &$results) {
+function oa_export_oa_export_entity_paragraphs_item($entity, &$results) {
   $results['export']['paragraphs_item:' . $entity->item_id] = $entity;
 }
 
@@ -75,7 +75,7 @@ function oa_export_oa_export_entity_paragraphs_item(&$entity, &$results) {
  *   The $batch['context']['results'] used to store the entities throughout
  *   the batch process.
  */
-function oa_export_oa_export_entity_taxonomy_term(&$entity, &$results) {
+function oa_export_oa_export_entity_taxonomy_term($entity, &$results) {
   $results['export']['taxonomy_term:' . $entity->tid] = $entity;
 }
 
@@ -88,7 +88,7 @@ function oa_export_oa_export_entity_taxonomy_term(&$entity, &$results) {
  *   The $batch['context']['results'] used to store the entities throughout
  *   the batch process.
  */
-function oa_export_oa_export_entity_comment(&$entity, &$results) {
+function oa_export_oa_export_entity_comment($entity, &$results) {
   $results['export']['comment:' . $entity->cid] = $entity;
 }
 
@@ -104,7 +104,7 @@ function oa_export_oa_export_entity_comment(&$entity, &$results) {
  *   The $batch['context']['results'] used to store the entities throughout
  *   the batch process.
  */
-function oa_export_oa_export_entity_file(&$entity, &$results) {
+function oa_export_oa_export_entity_file($entity, &$results) {
   // Add the file to the export.
   $results['export']['file:' . $entity->fid] = $entity;
   oa_export_file($entity);

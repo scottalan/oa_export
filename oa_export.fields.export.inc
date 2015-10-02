@@ -10,14 +10,13 @@
  * @param array $results
  *   Data stored in $context['results'] during the batch process.
  */
-function oa_export_fields_export(&$entity, $entity_type, &$results) {
+function oa_export_fields_export($entity, $entity_type, &$results) {
   foreach (field_info_fields() as $field_name => $field) {
     if (isset($entity->$field_name) && !empty($entity->$field_name)) {
-      // We don't use module_invoke because we want to pass the entity
+      // We don't use module_invoke because we want to pass the results
       // by reference.
       foreach (module_implements('oa_export_field_' . $field['type']) as $module) {
         $function = $module . '_oa_export_field_' . $field['type'];
-        $_type = $field['type'];
         $function($entity, $entity_type, $field_name, $results);
       }
     }
@@ -36,7 +35,7 @@ function oa_export_fields_export(&$entity, $entity_type, &$results) {
  * @param array $results
  *   Data stored in $context['results'] during the batch process.
  */
-function oa_export_oa_export_field_entityreference(&$entity, $entity_type, $field_name, &$results) {
+function oa_export_oa_export_field_entityreference($entity, $entity_type, $field_name, &$results) {
   foreach ($entity->{$field_name} as $language => $targets) {
     foreach ($targets as $delta => $target) {
       oa_export_entity_reference_field($target['target_id'], $entity, $entity_type, $field_name, $results);
@@ -56,7 +55,7 @@ function oa_export_oa_export_field_entityreference(&$entity, $entity_type, $fiel
  * @param array $results
  *   Data stored in $context['results'] during the batch process.
  */
-function oa_export_oa_export_field_paragraphs(&$entity, $entity_type, $field_name, &$results) {
+function oa_export_oa_export_field_paragraphs($entity, $entity_type, $field_name, &$results) {
   foreach ($entity->{$field_name} as $language => $items) {
     foreach ($items as $delta => $item) {
       // Look for the exported entity in our map.
@@ -95,7 +94,7 @@ function oa_export_oa_export_field_paragraphs(&$entity, $entity_type, $field_nam
  * @param array $results
  *   Data stored in $context['results'] during the batch process.
  */
-function oa_export_oa_export_field_file(&$entity, $entity_type, $field_name, &$results) {
+function oa_export_oa_export_field_file($entity, $entity_type, $field_name, &$results) {
   oa_export_file_field($entity, $field_name, $results);
 }
 
@@ -111,7 +110,7 @@ function oa_export_oa_export_field_file(&$entity, $entity_type, $field_name, &$r
  * @param array $results
  *   Data stored in $context['results'] during the batch process.
  */
-function oa_export_oa_export_field_image(&$entity, $entity_type, $field_name, &$results) {
+function oa_export_oa_export_field_image($entity, $entity_type, $field_name, &$results) {
   oa_export_file_field($entity, $field_name, $results);
 }
 
@@ -127,7 +126,7 @@ function oa_export_oa_export_field_image(&$entity, $entity_type, $field_name, &$
  * @param array $results
  *   Data stored in $context['results'] during the batch process.
  */
-function oa_export_oa_export_field_document(&$entity, $entity_type, $field_name, &$results) {
+function oa_export_oa_export_field_document($entity, $entity_type, $field_name, &$results) {
   oa_export_file_field($entity, $field_name, $results);
 }
 
@@ -143,7 +142,7 @@ function oa_export_oa_export_field_document(&$entity, $entity_type, $field_name,
  * @param array $results
  *   Data stored in $context['results'] during the batch process.
  */
-function oa_export_oa_export_field_taxonomy_term_reference(&$entity, $entity_type, $field_name, &$results) {
+function oa_export_oa_export_field_taxonomy_term_reference($entity, $entity_type, $field_name, &$results) {
   foreach ($entity->{$field_name} as $language => $targets) {
     foreach ($targets as $delta => $target) {
       // Look for the exported entity in our map.
@@ -170,7 +169,7 @@ function oa_export_oa_export_field_taxonomy_term_reference(&$entity, $entity_typ
  * @param array $results
  *   Data stored in $context['results'] during the batch process.
  */
-function oa_export_entity_reference_field($entity_id, &$entity, $entity_type, $field_name, &$results) {
+function oa_export_entity_reference_field($entity_id, $entity, $entity_type, $field_name, &$results) {
   // We need to check the settings on this field.
   $field_info = field_info_field($field_name);
   // We only want reference fields that are tageting nodes.
@@ -201,7 +200,7 @@ function oa_export_entity_reference_field($entity_id, &$entity, $entity_type, $f
  * @param array $results
  *   Data stored in $context['results'] during the batch process.
  */
-function oa_export_file_field(&$entity, $field_name, &$results) {
+function oa_export_file_field($entity, $field_name, &$results) {
   foreach ($entity->{$field_name} as $language => $targets) {
     foreach ($targets as $delta => $target) {
       $target = (object) $target;
