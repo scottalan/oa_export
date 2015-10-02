@@ -138,7 +138,7 @@ function _oa_export_batch_export_blueprint($blueprint, $space, &$context) {
   $blueprint->field_oa_clone_space = array();
 
   // Export the blueprint.
-  oa_export_entity_export('taxonomy_term', $blueprint, $results);
+  oa_export_entity_export('taxonomy_term', $blueprint, $context['results']);
 
   // Put the reference to the space back so we can reference it during our import.
   $context['results']['export']['taxonomy_term:' . $blueprint->tid]->field_oa_clone_space = $space_reference;
