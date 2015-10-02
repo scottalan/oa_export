@@ -12,7 +12,7 @@
  *
  * We use HTML-safe strings, with several characters escaped.
  *
- * COPIED FROM common.inc but added JSON_PRETTY_PRINT option
+ * COPIED FROM drupal_json_encode() in common.inc but added JSON_PRETTY_PRINT option
  *
  * @see drupal_json_decode()
  * @see drupal_json_encode_helper()
