@@ -50,6 +50,10 @@ function oa_export_entity_export($entity_type, $entity, &$results) {
  * @todo: Do we want to export users that created the node?
  */
 function oa_export_oa_export_entity_node($entity, &$results) {
+  // Remove properties added by user.module that we don't want to export
+  unset($entity->name);
+  unset($entity->picture);
+  unset($entity->data);
   $results['export']['node:' . $entity->nid] = $entity;
 }
 
