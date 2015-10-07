@@ -148,11 +148,10 @@ function oa_export_write_update_hook($filename, $module_name, $version) {
   $output = "";
   $output .= "\n/**\n* Implements hook_update_N().\n* Imports a blueprint.\n*/\n";
   $output .= "function {$module_name}_update_{$version}() {\n";
-  $output .= "  // Check for the oa_export directory.\n";
-  $output .= "  if (file_exists('oa_export')) {\n";
-  $output .= "    \$module = '" . $module_name . "';\n";
-  $output .= "    // Get the full path to the module directory.\n";
-  $output .= "    \$path = drupal_get_path('module', \$module) . '/' . OA_EXPORT_FILES;\n";
+  $output .= "  // Check for the export file.\n";
+  $output .= "  \$module = '" . $module_name . "';\n";
+  $output .= "  \$path = drupal_get_path('module', \$module);\n";
+  $output .= "  if (file_exists(\$path . '/' . OA_EXPORT_DIR . '/' . OA_EXPORT_JSON_FILE . '.json')) {\n";
   $output .= "    // Start the import.\n";
   $output .= "    oa_export_batch_import(\$path, 'module');\n";
   $output .= "  }\n";
