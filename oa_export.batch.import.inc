@@ -127,7 +127,7 @@ function _oa_export_batch_import_archive($file, &$context) {
   $archiver->extract($directory);
 
   // Get the actual path to our json file that contains our entities.
-  $real_path = realpath($extraction_location . '/entities.json');
+  $real_path = realpath($extraction_location . '/' . OA_EXPORT_JSON_FILE . '.json');
 
   // Store the entities.
   $context['results']['entities'] = oa_export_import_decode_data($real_path);
@@ -167,7 +167,7 @@ function _oa_export_batch_import_module_data($path, &$context) {
   $_SESSION['oa_export']['extract_location'] = $path;
 
   // Decode the json file and store the entities for the batch.
-  $context['results']['entities'] = oa_export_import_decode_data($path . '/oa_export/entities.json');
+  $context['results']['entities'] = oa_export_import_decode_data($path . '/' . OA_EXPORT_DIR. '/' . OA_EXPORT_JSON_FILE . '.json');
   // Will store a map for new entity ids.
   $context['results']['map'] = array();
 

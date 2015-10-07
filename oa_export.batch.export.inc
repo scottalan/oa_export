@@ -59,9 +59,6 @@ function oa_export_batch_export($blueprint, $export_type = 'file') {
       break;
 
     case 'module':
-      // Path to module.
-      $module_path = drupal_get_path('module', $_SESSION['oa_export']['module']);
-      ;
       $batch = array(
         'title' => t('Blueprint Module Export'),
         'init_message' => t('Preparing to export the "!name" blueprint to a module.', array('!name' => $blueprint->name)),
@@ -202,7 +199,7 @@ function oa_export_batch_file_download_finished($success, $results, $operations)
       $_SESSION['oa_export']['file'] = $tmp_dir . '/' . $base . '.tar.gz';
 
       // Create a json file to add to our export directory that contains the blueprint.
-      if (!oa_export_create_json_export('entities', $results['export'], $_SESSION['oa_export']['directory'])) {
+      if (!oa_export_create_json_export(OA_EXPORT_JSON_FILE, $results['export'], $_SESSION['oa_export']['directory'])) {
         drupal_set_message(t('There was an error creating the export file.'), 'error');
         oa_export_cleanup(isset($clean_dir) ? $clean_dir : NULL, OA_EXPORT_REDIRECT);
       }
@@ -264,7 +261,7 @@ function oa_export_batch_module_export_finished($success, $results, $operations)
   }
   if ($success) {
     // Create a json file to add to the oa_export directory in our module.
-    $file = oa_export_create_json_export('entities', $results['export'], $module_path . '/' . OA_EXPORT_DIR);
+    $file = oa_export_create_json_export(OA_EXPORT_JSON_FILE, $results['export'], $module_path . '/' . OA_EXPORT_DIR);
     // Make sure the file in place and give the user a message accordingly. If the file was successfully written
     // then we know the module was created as well.
     if ($file) {

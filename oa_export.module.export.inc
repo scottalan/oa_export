@@ -333,6 +333,8 @@ function oa_export_generate_module_form_submit($form, &$form_state) {
     return $form;
   }
 
+  // NOTE: Directories were created in the validation step.
+  // See oa_export_generate_module_form_validate()
   $module_path = $form['#module_path'];
   $module_name = $form['#module_name'];
 

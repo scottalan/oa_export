@@ -13,6 +13,7 @@ define('BLUEPRINT_SPACE', 'field_oa_clone_space');
 define('OA_EXPORT_FILES', 'files');
 define('OA_EXPORT_DIR', 'oa_export');
 define('OA_EXPORT_REDIRECT', 'admin/structure/taxonomy/space_type');
+define('OA_EXPORT_JSON_FILE', 'entities');
 
 /**
  * Implements hook_menu().
