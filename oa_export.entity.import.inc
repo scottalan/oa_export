@@ -116,6 +116,22 @@ function oa_export_oa_import_entity_paragraphs_item(&$entity, $key, &$imports, &
 }
 
 /**
+ * Lookup a taxonomy term given it's unique id.
+ *
+ * @param string $id
+ * @return array of 'tid' and 'vid'.  NULL if not found.
+ */
+function _oa_export_find_term_by_unique_id($id) {
+  $query = db_select('taxonomy_term_data', 't');
+  $query->join('field_data_field_unique_id', 'f', 't.tid = f.entity_id AND f.entity_type = "taxonomy_term"');
+  $query
+    ->fields('t', array('tid', 'vid'))
+    ->condition('f.field_unique_id_value', $id);
+  $result = $query->execute()->fetchAssoc();
+  return $result;
+}
+
+/**
  * Implements hook_oa_import_entity_ENTITY_TYPE().
  *
  * @param object $entity
@@ -129,26 +145,22 @@ function oa_export_oa_import_entity_paragraphs_item(&$entity, $key, &$imports, &
  *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
  */
 function oa_export_oa_import_entity_taxonomy_term(&$entity, $key, &$imports, &$map) {
-  $exists = FALSE;
-  $terms = taxonomy_get_term_by_name($entity->name);
-  foreach ($terms as $tid => $term) {
-    // We found an existing term.
-    if ($entity->vid == $term->vid) {
-      $exists = TRUE;
-      continue;
+  if (!empty($entity->field_unique_id[LANGUAGE_NONE]['value'])) {
+    $term = _oa_export_find_term_by_unique_id($entity->field_unique_id[LANGUAGE_NONE]['value']);
+    if (!empty($term)) {
+      $entity->oa_imported = TRUE;
+      $entity->tid = $term['tid'];
+      $entity->vid = $term['vid'];
+      return;
     }
   }
-  if ($exists) {
-    // Just pretend we already imported it.
-    $entity->oa_imported = TRUE;
-  }
-  else {
-    $entity->tid = NULL;
-    // Make sure we have the correct vocabulary vid.
-    $vocab = taxonomy_vocabulary_machine_name_load($entity->vocabulary_machine_name);
-    // Associate this taxonomy term with the correct vocabulary.
-    $entity->vid = $vocab->vid;
-  }
+
+  // Otherwise, the term doesn't exist, so create a new one.
+  $entity->tid = NULL;
+  // Make sure we have the correct vocabulary vid.
+  $vocab = taxonomy_vocabulary_machine_name_load($entity->vocabulary_machine_name);
+  // Associate this taxonomy term with the correct vocabulary.
+  $entity->vid = $vocab->vid;
 }
 
 /**
