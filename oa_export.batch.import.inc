@@ -167,7 +167,7 @@ function _oa_export_batch_import_module_data($path, &$context) {
   $_SESSION['oa_export']['extract_location'] = $path;
 
   // Decode the json file and store the entities for the batch.
-  $context['results']['entities'] = oa_export_import_decode_data($path . '/' . OA_EXPORT_DIR. '/' . OA_EXPORT_JSON_FILE . '.json');
+  $context['results']['entities'] = oa_export_import_decode_data($path . '/' . OA_EXPORT_JSON_FILE . '.json');
   // Will store a map for new entity ids.
   $context['results']['map'] = array();
 

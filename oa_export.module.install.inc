@@ -150,8 +150,8 @@ function oa_export_write_update_hook($filename, $module_name, $version) {
   $output .= "function {$module_name}_update_{$version}() {\n";
   $output .= "  // Check for the export file.\n";
   $output .= "  \$module = '" . $module_name . "';\n";
-  $output .= "  \$path = drupal_get_path('module', \$module);\n";
-  $output .= "  if (file_exists(\$path . '/' . OA_EXPORT_DIR . '/' . OA_EXPORT_JSON_FILE . '.json')) {\n";
+  $output .= "  \$path = drupal_get_path('module', \$module) . '/' . OA_EXPORT_DIR;\n";
+  $output .= "  if (file_exists(\$path . '/' . OA_EXPORT_JSON_FILE . '.json')) {\n";
   $output .= "    // Start the import.\n";
   $output .= "    oa_export_batch_import(\$path, 'module');\n";
   $output .= "  }\n";
