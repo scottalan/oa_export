@@ -39,7 +39,7 @@ function oa_export_entity_menu_export(&$entity, $entity_id, $entity_type, &$resu
 
     // Save the link keyed as: link:[MENU LINK ID]:[ENTITY ID]
     $results['export']['link:' . $link['mlid']] = $link;
-    $results['export']['menu_trees'] = $tree;
+    $results['export']['menu_trees:0'] = $tree;
   }
 }
 
