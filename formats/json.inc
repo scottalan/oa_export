@@ -21,14 +21,23 @@
 function drupal_json_pretty_print($var) {
   // The PHP version cannot change within a request.
   static $php530;
+  static $php540;
 
   if (!isset($php530)) {
     $php530 = version_compare(PHP_VERSION, '5.3.0', '>=');
   }
 
+  if (!isset($php540)) {
+    $php540 = version_compare(PHP_VERSION, '5.4.0', '>=');
+  }
+
   if ($php530) {
     // Encode <, >, ', &, and " using the json_encode() options parameter.
-    return json_encode($var, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_PRETTY_PRINT);
+    $options = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
+    if ($php540) {
+      $options = $options | JSON_PRETTY_PRINT;
+    }
+    return json_encode($var, $options);
   }
 
   // json_encode() escapes <, >, ', &, and " using its options parameter, but
