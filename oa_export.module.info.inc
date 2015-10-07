@@ -39,7 +39,9 @@ function oa_export_create_new_info_file($form, $form_state) {
   $filename = $form['#module_file'];
   $output = '';
   foreach ($info as $k => $v) {
-    $output .= "$k = $v\n";
+    if (!empty($v)) {
+      $output .= "$k = $v\n";
+    }
   }
   // We only need a dependency on oa_export for now.
   $output .= "dependencies[] = oa_export";
