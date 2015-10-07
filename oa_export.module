@@ -161,7 +161,7 @@ function oa_export_import_decode_data($path) {
  *   The comment ids.
  */
 function oa_export_get_comments($nid) {
-  if (db_table_exists('comment')) {
+  if (module_exists('comment')) {
     $comments = db_select('comment', 'c')
       ->fields('c', array('cid', 'nid'))
       ->condition('nid', $nid, '=')
