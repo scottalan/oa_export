@@ -80,7 +80,13 @@ function oa_export_oa_export_entity_paragraphs_item($entity, &$results) {
  *   the batch process.
  */
 function oa_export_oa_export_entity_taxonomy_term($entity, &$results) {
-  $results['export']['taxonomy_term:' . $entity->tid] = $entity;
+  // Make a copy of the taxonomy entity here so we can unset the field to
+  // prevent recursive space blueprint export.
+  $results['export']['taxonomy_term:' . $entity->tid] = clone $entity;
+
+  // Remove the space reference for now so it doesn't get exported yet.
+  // We don't want recursive blueprints exported.
+  unset($entity->field_oa_clone_space);
 }
 
 /**
