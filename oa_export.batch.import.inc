@@ -216,14 +216,6 @@ function _oa_export_batch_import_entities(&$context) {
 
     // The new entity id if it hasn't been imported yet, FALSE if it has.
     $new_id = oa_export_entity_import($entity_type, $entity, $key, $entities, $map);
-
-    // If we get a new entity id store it in our map.
-    if ($new_id) {
-      // Store the new entity keyed by the old entity.
-      if (!isset($map[$key])) {
-        $map[$key] = $new_id;
-      }
-    }
   }
 
   // Bump the progress indicator.
