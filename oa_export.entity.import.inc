@@ -50,6 +50,15 @@ function oa_export_entity_import($entity_type, &$entity, $key, &$imports, &$map)
         if (isset($entity_id)) {
           // Update the map so we don't import this again recursively.
           $map[$key] = $entity_id;
+          // Load the REAL new entity and copy the field data from the imported entity.
+          // Need this otherwise when we save the field data later it will be
+          // resaving the same non-field properties, such as panelizer that
+          // have already been saved.
+          $new_entity = entity_load_single($entity_type, $entity_id);
+          if (entity_type_is_fieldable($entity_type)) {
+            oa_export_copy_field_data($entity, $new_entity);
+          }
+          $entity = $new_entity;
         }
       }
     }

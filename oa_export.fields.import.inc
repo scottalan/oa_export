@@ -19,13 +19,29 @@ require_once 'oa_export.entity.import.inc';
  */
 function oa_export_fields_import(&$entity, $entity_type, $key, &$imports, &$map) {
   foreach (field_info_fields() as $field_name => $field) {
-    if (isset($entity->$field_name) && !empty($entity->$field_name)) {
+    if (!empty($entity->$field_name)) {
       // Here call hook functions. Doesn't use module_invoke because we
       // want to pass the clone by reference.
       foreach (module_implements('oa_import_field_' . $field['type']) as $module) {
         $function = $module . '_oa_import_field_' . $field['type'];
         $function($entity, $entity_type, $field_name, $key, $imports, $map);
       }
+    }
+  }
+}
+
+/**
+ * Helper function to copy entity fields.
+ *
+ * @param object $source
+ *   The imported source entity.
+ * @param object $dest
+ *   The destination entity to receive the fields from source
+ */
+function oa_export_copy_field_data($source, $dest) {
+  foreach (field_info_fields() as $field_name => $field) {
+    if (!empty($source->$field_name)) {
+      $dest->$field_name = $source->$field_name;
     }
   }
 }
