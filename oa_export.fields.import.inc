@@ -52,12 +52,17 @@ function oa_export_oa_import_field_entityreference(&$entity, $entity_type, $fiel
   foreach ($entity->{$field_name} as $language => $targets) {
     foreach ($targets as $delta => $target) {
       // Look for the imported entity in our map.
-      if (isset($map['node' . ':' . $target['target_id']])) {
-        $entity->{$field_name}[$language][$delta]['target_id'] = $map['node' . ':' . $target['target_id']];
+      $node_key = 'node' . ':' . $target['target_id'];
+      if (isset($map[$node_key])) {
+        $nid = $map[$node_key];
+        if (is_object($nid)) {
+          $nid = $nid->nid;
+        }
+        $entity->{$field_name}[$language][$delta]['target_id'] = $nid;
       }
       else {
         // Import the entity reference now.
-        $new_id = oa_export_entity_import('node', $imports['node:' . $target['target_id']], 'node:' . $target['target_id'], $imports, $map);
+        $new_id = oa_export_entity_import('node', $imports[$node_key], $node_key, $imports, $map);
         // Set the new target id.
         $entity->{$field_name}[$language][$delta]['target_id'] = $new_id;
       }
