@@ -21,6 +21,10 @@ require_once 'oa_export.fields.import.inc';
  *   The entity id of the entity that was imported.
  */
 function oa_export_entity_import($entity_type, $entity, $key, $imports, &$map) {
+  if (isset($map[$key])) {
+    return $map[$key];
+  }
+
   if (!isset($entity)) {
     return FALSE;
   }
@@ -56,6 +60,8 @@ function oa_export_entity_import($entity_type, $entity, $key, $imports, &$map) {
 
     // If the entity if fieldable check for fields that may need to be imported.
     if (entity_type_is_fieldable($entity_type)) {
+      // Allow entity to be re-saved with new field data
+      $entity->oa_imported = FALSE;
       oa_export_fields_import($entity_type, $entity, $key, $imports, $map);
     }
 
@@ -70,8 +76,6 @@ function oa_export_entity_import($entity_type, $entity, $key, $imports, &$map) {
   }
 
   // Check again for final save.
-  // In the case of a 'file', for example, we save the entity a
-  // different way and mark it as imported.
   if (!isset($entity->oa_imported)) {
     entity_save($entity_type, $entity);
     // Mark the entity as imported.
@@ -80,6 +84,11 @@ function oa_export_entity_import($entity_type, $entity, $key, $imports, &$map) {
 
   // Get the entity's new id and return it.
   list($entity_id) = entity_extract_ids($entity_type, $entity);
+
+  if (isset($entity_id) && !isset($map[$key])) {
+    $map[$key] = $entity_id;
+  }
+
   return (isset($entity_id)) ? $entity_id : FALSE;
 }
 
@@ -221,27 +230,24 @@ function oa_export_oa_import_entity_file(&$entity, $key, $imports, &$map) {
   // The files that were exported are located here.
   $file_location = $_SESSION['oa_export']['extract_location'] . DIRECTORY_SEPARATOR . OA_EXPORT_FILES;
 
-  // Make sure our file entity is an array.
-  $file = is_object($entity) ? (array) $entity : $entity;
-
   // Location where the file will be saved.
-  $destination = drupal_dirname($file['uri']);
+  $destination = drupal_dirname($entity->uri);
 
   // The name of the file.
-  $filename = drupal_basename($file['uri']);
+  $filename = drupal_basename($entity->uri);
 
   // Find the actual file we need to import.
   $file_contents = file_get_contents(realpath($file_location . DIRECTORY_SEPARATOR . $filename));
 
   // Save the file by the same name to its new location. This calls file_save() for us.
   if ($new_file = file_save_data($file_contents, $destination . $filename)) { // FILE_EXISTS_REPLACE
-    // Convert the file back to an object after merging the old file with the
-    // new file. This is necessary as the fields that exist on the old file are
-    // not available on the new file.
-    $entity = (object) array_merge($file, (array) $new_file);
+    // Copy any fields from the import into the new file
+    oa_export_copy_field_data($entity, $new_file);
+    $entity = $new_file;
+    $entity->fid = $new_file->fid;
 
     // Add the imported file to our map.
-    $map['file:' . $file['fid']] = $entity->fid;
+    $map[$key] = $entity->fid;
 
     // This will stop the file from being saved a second time.
     $entity->oa_imported = TRUE;
