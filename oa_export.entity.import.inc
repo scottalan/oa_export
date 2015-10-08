@@ -156,7 +156,7 @@ function oa_export_oa_import_entity_taxonomy_term(&$entity, $key, &$imports, &$m
   $entity->tid = NULL;
   // Make sure we have the correct vocabulary vid.
   $vocab = taxonomy_vocabulary_machine_name_load($entity->vocabulary_machine_name);
-  if (!isset($vocab)) {
+  if (empty($vocab)) {
     // Vocabulary doesn't exist, so create it.
     $vocab = new stdClass();
     $vocab->name = $entity->vocabulary_machine_name;
