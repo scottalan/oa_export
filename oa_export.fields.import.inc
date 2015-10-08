@@ -168,6 +168,10 @@ function oa_export_oa_import_field_file($entity_type, $entity, $field_name, $key
         // Set the new file id.
         if (!empty($new_id)) {
           $entity->{$field_name}[$language][$delta]['fid'] = $new_id;
+          // Mark file as being used by entity.
+          list($entity_id) = entity_extract_ids($entity_type, $entity);
+          $file = file_load($new_id);
+          file_usage_add($file, 'oa_export', $entity_type, $entity_id);
         }
       }
     }
@@ -205,6 +209,10 @@ function oa_export_oa_import_field_image($entity_type, $entity, $field_name, $ke
         // Set the new file id. @todo: Would something like this be cleaner with a $wrapper?
         if (!empty($new_id)) {
           $entity->{$field_name}[$language][$delta]['fid'] = $new_id;
+          // Mark file as being used by entity.
+          list($entity_id) = entity_extract_ids($entity_type, $entity);
+          $file = file_load($new_id);
+          file_usage_add($file, 'oa_export', $entity_type, $entity_id);
         }
       }
     }
