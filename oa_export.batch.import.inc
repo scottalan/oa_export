@@ -35,9 +35,18 @@ function oa_export_batch_import($data, $import_type = 'file') {
       break;
   }
 
-  // Define the batch. The batch is automatically processed since it is
-  // triggered by a form submission.
-  batch_set($batch);
+  if (drupal_is_cli()) {
+    $batch['progressive'] = FALSE;
+    batch_set($batch);
+    if (function_exists('drush_backend_batch_process')) {
+      // Running via drush, to start the batch processing.
+      drush_backend_batch_process();
+    }
+  }
+  else {
+    // Running interactively via form submission, so just set the batch.
+    batch_set($batch);
+  }
 }
 
 /**
