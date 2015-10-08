@@ -5,10 +5,10 @@ require_once 'oa_export.entity.import.inc';
 /**
  * Helper function to import entity fields.
  *
- * @param object $entity
- *   The fully loaded entity.
  * @param string $entity_type
  *   The type of entity, e.g., 'node', 'taxonomy_term', etc.
+ * @param object $entity
+ *   The fully loaded entity.
  * @param string $key
  *   Entities are keyed by [ENTITY_TYPE:ENTITY_ID].
  * @param array $imports
@@ -17,14 +17,14 @@ require_once 'oa_export.entity.import.inc';
  *   Contains a record of imported entities and their ids.
  *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
  */
-function oa_export_fields_import(&$entity, $entity_type, $key, &$imports, &$map) {
+function oa_export_fields_import($entity_type, $entity, $key, $imports, &$map) {
   foreach (field_info_fields() as $field_name => $field) {
     if (!empty($entity->$field_name)) {
       // Here call hook functions. Doesn't use module_invoke because we
       // want to pass the clone by reference.
       foreach (module_implements('oa_import_field_' . $field['type']) as $module) {
         $function = $module . '_oa_import_field_' . $field['type'];
-        $function($entity, $entity_type, $field_name, $key, $imports, $map);
+        $function($entity_type, $entity, $field_name, $key, $imports, $map);
       }
     }
   }
@@ -64,14 +64,13 @@ function oa_export_copy_field_data($source, $dest) {
  *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
  * @throws EntityMalformedException
  */
-function oa_export_oa_import_field_entityreference(&$entity, $entity_type, $field_name, $key, &$imports, &$map) {
+function oa_export_oa_import_field_entityreference($entity_type, $entity, $field_name, $key, $imports, &$map) {
   foreach ($entity->{$field_name} as $language => $targets) {
     foreach ($targets as $delta => $target) {
       // Look for the imported entity in our map.
       $node_key = 'node' . ':' . $target['target_id'];
       if (isset($map[$node_key])) {
-        $nid = is_numeric($map[$node_key]) ? $map[$node_key] : $map[$node_key]->nid;
-        $entity->{$field_name}[$language][$delta]['target_id'] = $nid;
+        $entity->{$field_name}[$language][$delta]['target_id'] = $map[$node_key];
       }
       else {
         // Import the entity reference now.
@@ -102,7 +101,7 @@ function oa_export_oa_import_field_entityreference(&$entity, $entity_type, $fiel
  *   Contains a record of imported entities and their ids.
  *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
  */
-function oa_export_oa_import_field_paragraphs(&$entity, $entity_type, $field_name, $key, &$imports, &$map) {
+function oa_export_oa_import_field_paragraphs($entity_type, $entity, $field_name, $key, $imports, &$map) {
   foreach ($entity->{$field_name} as $language => $items) {
     foreach ($items as $delta => &$item) {
 
@@ -155,14 +154,13 @@ function oa_export_oa_import_field_paragraphs(&$entity, $entity_type, $field_nam
  *   Contains a record of imported entities and their ids.
  *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
  */
-function oa_export_oa_import_field_file(&$entity, $entity_type, $field_name, $key, &$imports, &$map) {
+function oa_export_oa_import_field_file($entity_type, $entity, $field_name, $key, $imports, &$map) {
   foreach ($entity->{$field_name} as $language => $targets) {
     foreach ($targets as $delta => $target) {
       // Look for the imported entity in our map.
       $file_key = 'file:' . $target['fid'];
       if (isset($map[$file_key])) {
-        $fid = is_numeric($map[$file_key]) ? $map[$file_key] : $map[$file_key]->fid;
-        $entity->{$field_name}[$language][$delta]['fid'] = $fid;
+        $entity->{$field_name}[$language][$delta]['fid'] = $map[$file_key];
       }
       else {
         // Import the file now.
@@ -193,14 +191,13 @@ function oa_export_oa_import_field_file(&$entity, $entity_type, $field_name, $ke
  *   Contains a record of imported entities and their ids.
  *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
  */
-function oa_export_oa_import_field_image(&$entity, $entity_type, $field_name, $key, &$imports, &$map) {
+function oa_export_oa_import_field_image($entity_type, $entity, $field_name, $key, $imports, &$map) {
   foreach ($entity->{$field_name} as $language => $targets) {
     foreach ($targets as $delta => $target) {
       // Look for the imported entity in our map.
       $file_key = 'file:' . $target['fid'];
       if (isset($map[$file_key])) {
-        $fid = is_numeric($map[$file_key]) ? $map[$file_key] : $map[$file_key]->fid;
-        $entity->{$field_name}[$language][$delta]['fid'] = $fid;
+        $entity->{$field_name}[$language][$delta]['fid'] = $map[$file_key];
       }
       else {
         // Import the file now.
@@ -231,14 +228,13 @@ function oa_export_oa_import_field_image(&$entity, $entity_type, $field_name, $k
  *   Contains a record of imported entities and their ids.
  *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
  */
-function oa_export_oa_import_field_taxonomy_term_reference(&$entity, $entity_type, $field_name, $key, &$imports, &$map) {
+function oa_export_oa_import_field_taxonomy_term_reference($entity_type, $entity, $field_name, $key, $imports, &$map) {
   foreach ($entity->{$field_name} as $language => $targets) {
     foreach ($targets as $delta => $target) {
       // Look for the imported entity in our map.
       $term_key = 'taxonomy_term:' . $target['tid'];
       if (isset($map[$term_key])) {
-        $tid = is_numeric($map[$term_key]) ? $map[$term_key] : $map[$term_key]->tid;
-        $entity->{$field_name}[$language][$delta]['tid'] = $tid;
+        $entity->{$field_name}[$language][$delta]['tid'] = $map[$term_key];
       }
       else {
         // Import the file now.

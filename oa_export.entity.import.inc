@@ -20,8 +20,7 @@ require_once 'oa_export.fields.import.inc';
  * @return integer
  *   The entity id of the entity that was imported.
  */
-function oa_export_entity_import($entity_type, &$entity, $key, &$imports, &$map) {
-
+function oa_export_entity_import($entity_type, $entity, $key, $imports, &$map) {
   if (!isset($entity)) {
     return FALSE;
   }
@@ -29,43 +28,35 @@ function oa_export_entity_import($entity_type, &$entity, $key, &$imports, &$map)
   // Make sure this entity hasn't been imported already.
   if (!isset($entity->oa_imported)) {
 
-    // Check if entity has already been mapped
-    if (isset($map[$key])) {
-      $entity = (is_numeric($map[$key])) ? entity_load_single($entity_type, $map[$key]) : $map[$key];
-      // Cache the actual entity so we don't load it again in the future.
-      $map[$key] = $entity;
+    // Otherwise, load entity from import data.
+    foreach (module_implements('oa_import_entity_' . $entity_type) as $module) {
+      $function = $module . '_oa_import_entity_' . $entity_type;
+      $function($entity, $key, $imports, $map);
     }
-    else {
-      // Otherwise, load entity from import data.
-      foreach (module_implements('oa_import_entity_' . $entity_type) as $module) {
-        $function = $module . '_oa_import_entity_' . $entity_type;
-        $function($entity, $key, $imports, $map);
-      }
-      // Save the raw entity BEFORE importing fields to map the new entity_id
-      if (!isset($entity->oa_imported)) {
-        $entity->is_new = TRUE;
-        entity_save($entity_type, $entity);
-        // Get new entity_id
-        list($entity_id) = entity_extract_ids($entity_type, $entity);
-        if (isset($entity_id)) {
-          // Update the map so we don't import this again recursively.
-          $map[$key] = $entity_id;
-          // Load the REAL new entity and copy the field data from the imported entity.
-          // Need this otherwise when we save the field data later it will be
-          // resaving the same non-field properties, such as panelizer that
-          // have already been saved.
-          $new_entity = entity_load_single($entity_type, $entity_id);
-          if (entity_type_is_fieldable($entity_type)) {
-            oa_export_copy_field_data($entity, $new_entity);
-          }
-          $entity = $new_entity;
+    // Save the raw entity BEFORE importing fields to map the new entity_id
+    if (!isset($entity->oa_imported)) {
+      $entity->is_new = TRUE;
+      entity_save($entity_type, $entity);
+      // Get new entity_id
+      list($entity_id) = entity_extract_ids($entity_type, $entity);
+      if (isset($entity_id)) {
+        // Update the map so we don't import this again recursively.
+        $map[$key] = $entity_id;
+        // Load the REAL new entity and copy the field data from the imported entity.
+        // Need this otherwise when we save the field data later it will be
+        // resaving the same non-field properties, such as panelizer that
+        // have already been saved.
+        $new_entity = entity_load_single($entity_type, $entity_id);
+        if (entity_type_is_fieldable($entity_type)) {
+          oa_export_copy_field_data($entity, $new_entity);
         }
+        $entity = $new_entity;
       }
     }
 
     // If the entity if fieldable check for fields that may need to be imported.
     if (entity_type_is_fieldable($entity_type)) {
-      oa_export_fields_import($entity, $entity_type, $key, $imports, $map);
+      oa_export_fields_import($entity_type, $entity, $key, $imports, $map);
     }
 
     // Allow anyone to alter the clone one last time.
@@ -105,7 +96,7 @@ function oa_export_entity_import($entity_type, &$entity, $key, &$imports, &$map)
  *   Contains a record of imported entities and their ids.
  *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
  */
-function oa_export_oa_import_entity_node(&$entity, $key, &$imports, &$map) {
+function oa_export_oa_import_entity_node($entity, $key, $imports, &$map) {
   global $user;
   $entity->nid = NULL;
   $entity->uid = $user->uid;
@@ -130,7 +121,7 @@ function oa_export_oa_import_entity_node(&$entity, $key, &$imports, &$map) {
  *   Contains a record of imported entities and their ids.
  *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
  */
-function oa_export_oa_import_entity_paragraphs_item(&$entity, $key, &$imports, &$map) {
+function oa_export_oa_import_entity_paragraphs_item($entity, $key, $imports, &$map) {
   // Don't save this entity. It will be saved when the entity it is attached to
   // is saved.
   $entity->oa_imported = TRUE;
@@ -149,7 +140,7 @@ function oa_export_oa_import_entity_paragraphs_item(&$entity, $key, &$imports, &
  *   Contains a record of imported entities and their ids.
  *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
  */
-function oa_export_oa_import_entity_taxonomy_term(&$entity, $key, &$imports, &$map) {
+function oa_export_oa_import_entity_taxonomy_term($entity, $key, $imports, &$map) {
   $terms = taxonomy_get_term_by_name($entity->name);
   foreach ($terms as $tid => $term) {
     // We found an existing term.
@@ -189,18 +180,16 @@ function oa_export_oa_import_entity_taxonomy_term(&$entity, $key, &$imports, &$m
  *   Contains a record of imported entities and their ids.
  *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
  */
-function oa_export_oa_import_entity_comment(&$entity, $key, &$imports, &$map) {
+function oa_export_oa_import_entity_comment($entity, $key, $imports, &$map) {
   // See if the entity has already been imported. As of now comments can only
   // be added to 'node' entities.
-  if (isset($map['node:' . $entity->nid])) {
-    $entity_id = $map['node:' . $entity->nid];
-    if (is_object($entity_id)) {
-      $entity_id = $entity_id->nid;
-    }
+  $node_key = 'node:' . $entity->nid;
+  if (isset($map[$node_key])) {
+    $entity_id = $map[$node_key];
   }
   else {
     // Import the entity now.
-    $entity_id = oa_export_entity_import('node', $imports['node:' . $entity->nid], 'node:' . $entity->nid, $imports, $map);
+    $entity_id = oa_export_entity_import('node', $imports[$node_key], $node_key, $imports, $map);
   }
 
   if (!empty($entity_id)) {
@@ -228,7 +217,7 @@ function oa_export_oa_import_entity_comment(&$entity, $key, &$imports, &$map) {
  * We need to not only create a new entry for the file but we need to copy the
  * file to it's new location as well. This accomplishes both.
  */
-function oa_export_oa_import_entity_file(&$entity, $key, &$imports, &$map) {
+function oa_export_oa_import_entity_file($entity, $key, $imports, &$map) {
   // The files that were exported are located here.
   $file_location = $_SESSION['oa_export']['extract_location'] . '/' . OA_EXPORT_FILES;
 

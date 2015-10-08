@@ -215,7 +215,7 @@ function _oa_export_batch_import_entities(&$context) {
     list($entity_type, $entity_id) = explode(':', $key);
 
     // The new entity id if it hasn't been imported yet, FALSE if it has.
-    $new_id = oa_export_entity_import($entity_type, $entity, $key, $entities, $map);
+    $new_id = oa_export_import($entity_type, $entity, $key, $entities, $map);
   }
 
   // Bump the progress indicator.
@@ -226,97 +226,48 @@ function _oa_export_batch_import_entities(&$context) {
 }
 
 /**
- * Imports menus.
+ * Helper function to import "stuff".
  *
- * @param array $context
- *   Passed around between batch operations.
+ * @param string $entity_type
+ *   The type of entity, e.g., 'node', 'taxonomy_term', etc.
+ * @param object $entity
+ *   The fully loaded entity.
+ * @param string $key
+ *   Entities are keyed by [ENTITY_TYPE:ENTITY_ID].
+ * @param array $imports
+ *   Contains all entities that will be imported.
+ * @param array $map
+ *   Contains a record of imported entities and their ids.
+ *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
+ *
+ * @return integer
+ *   The entity id of the entity that was imported.
  */
-function _oa_export_batch_import_menus(&$context) {
-
-  if (empty($context['sandbox']['max'])) {
-    $context['sandbox']['progress'] = 0;
-    $context['sandbox']['max'] = 1;
-    $context['results']['total'] = (!empty($context['results']['total']) ? $context['results']['total'] : 0) + $context['sandbox']['max'];
+function oa_export_import($entity_type, $entity, $key, &$imports, &$map) {
+  // Check if entity has already been mapped
+  if (isset($map[$key])) {
+    $new_id = $map[$key];
   }
-
-  $entities = $context['results']['entities'];
-
-  $map = &$context['results']['map'];
-
-  // Iterate over the entities and try to import them.
-  foreach ($entities as $key => &$entity) {
-
-    // Get the entity type and its original id.
-    list($entity_type, $entity_id) = explode(':', $key);
-
-    if ($entity_type == 'link') {
-      // The new entity id if it hasn't been imported yet, FALSE if it has.
-      $new_id = oa_export_entity_menu_import($entity, $key, $entities, $map);
-
-      // If we get a new entity id store it in our map.
-      if ($new_id) {
-        // Store the new entity keyed by the old entity.
-        if (!isset($map[$key])) {
-          $map[$key] = $new_id;
-        }
+  else {
+    $new_id = FALSE;
+    $info = entity_get_info($entity_type);
+    if (!empty($info)) {
+      // We are importing a proper entity.
+      $new_id = oa_export_entity_import($entity_type, $entity, $key, $imports, $map);
+    }
+    else {
+      // We are importing "extra stuff"
+      foreach (module_implements('oa_import_extra_' . $entity_type) as $module) {
+        $function = $module . '_oa_import_extra_' . $entity_type;
+        $new_id = $function($entity, $key, $imports, $map);
       }
     }
-  }
-
-  // Bump the progress indicator.
-  $context['sandbox']['progress']++;
-
-  // We are finished with the import.
-  $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
-}
-
-
-/**
- * Imports group metadata such as roles and permissions.
- *
- * @param array $context
- *   Passed around between batch operations.
- */
-function _oa_export_batch_import_metadata(&$context) {
-
-  if (empty($context['sandbox']['max'])) {
-    $context['sandbox']['progress'] = 0;
-    $context['sandbox']['max'] = 1;
-    $context['results']['total'] = (!empty($context['results']['total']) ? $context['results']['total'] : 0) + $context['sandbox']['max'];
-  }
-
-  $entities = $context['results']['entities'];
-
-  $map = &$context['results']['map'];
-
-  // Iterate over the entities and try to import them.
-  foreach ($entities as $key => &$metadata) {
-
-    // Get the type of metadata, the entity bundle, and the id of the entity it
-    // belongs to.
-    list($type, $bundle, $entity_id) = explode(':', $key);
-
-    if ($type == 'role') {
-      // The new entity id if it hasn't been imported yet, FALSE if it has.
-      $new_id = oa_export_entity_group_role_import($metadata, $bundle, $entity_id, $key, $entities, $map);
-    }
-    if ($type == 'permission') {
-      $new_id = oa_export_entity_group_permission_import($metadata, $bundle, $entity_id, $key, $entities, $map);
-    }
-    // If we get a new entity id store it in our map.
-    if ($new_id) {
-      // Store the new entity keyed by the old entity.
-      if (!isset($map[$key])) {
-        $map[$key] = $new_id;
-      }
+    if (($new_id !== FALSE) && !isset($map[$key])) {
+      $map[$key] = $new_id;
     }
   }
 
-  // Bump the progress indicator.
-  $context['sandbox']['progress']++;
-
-  // We are finished with the import.
-  $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
+  return $new_id;
 }
 
 /**

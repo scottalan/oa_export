@@ -16,9 +16,11 @@
  * @return bool/int
  *   The new mlid if we create a new menu item.
  */
-function oa_export_entity_menu_import(&$link, &$key, &$imports, &$map) {
+function oa_export_oa_import_extra_menu($link, $key, $imports, &$map) {
 
   $new_mlid = FALSE;
+  print "Importing menu link $key\n";
+  return FALSE;
 
   if (!empty($link)) {
     // The old menu link id and nid it belongs to.
@@ -74,11 +76,15 @@ function oa_export_entity_menu_import(&$link, &$key, &$imports, &$map) {
  *   Contains a record of imported entities and their ids.
  *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
  */
-function oa_export_entity_group_role_import(&$role, $bundle, $entity_id, $key, &$imports, &$map) {
+function oa_export_oa_import_extra_role($role, $key, $imports, &$map) {
 
   $new_id = FALSE;
+  print "Importing role $key\n";
+  return FALSE;
 
   if (!empty($role)) {
+    list($type, $bundle, $entity_id) = explode(':', $key);
+
     foreach ($role as $name) {
       // Make sure the role doesn't already exist.
       module_load_include('inc', 'og', 'includes/og_features_role.features');
@@ -138,9 +144,14 @@ function oa_export_entity_group_role_import(&$role, $bundle, $entity_id, $key, &
  *   Contains a record of imported entities and their ids.
  *   -  [ENTITY_TYPE:OLD_ENTITY_ID] = [NEW_ENTITY_ID];
  */
-function oa_export_entity_group_permission_import(&$permission, $bundle, $entity_id, $key, &$imports, &$map) {
+function oa_export_oa_import_extra_permission($permission, $key, $imports, &$map) {
+
+  print "Importing permission $key\n";
+  return FALSE;
 
   if (!empty($permission)) {
+    list($type, $bundle, $entity_id) = explode(':', $key);
+
     foreach ($permission as $rid => $permissions) {
       $existing = og_role_permissions(array($rid => $permissions));
       $new = array_diff($permission[$rid], $existing[$rid]);
