@@ -77,7 +77,9 @@ function oa_export_oa_import_field_entityreference(&$entity, $entity_type, $fiel
         // Import the entity reference now.
         $new_id = oa_export_entity_import('node', $imports[$node_key], $node_key, $imports, $map);
         // Set the new target id.
-        $entity->{$field_name}[$language][$delta]['target_id'] = $new_id;
+        if (!empty($new_id)) {
+          $entity->{$field_name}[$language][$delta]['target_id'] = $new_id;
+        }
       }
     }
   }
@@ -166,7 +168,9 @@ function oa_export_oa_import_field_file(&$entity, $entity_type, $field_name, $ke
         // Import the file now.
         $new_id = oa_export_entity_import('file', $imports[$file_key], $file_key, $imports, $map);
         // Set the new file id.
-        $entity->{$field_name}[$language][$delta]['fid'] = $new_id;
+        if (!empty($new_id)) {
+          $entity->{$field_name}[$language][$delta]['fid'] = $new_id;
+        }
       }
     }
   }
@@ -202,7 +206,9 @@ function oa_export_oa_import_field_image(&$entity, $entity_type, $field_name, $k
         // Import the file now.
         $new_id = oa_export_entity_import('file', $imports[$file_key], $file_key, $imports, $map);
         // Set the new file id. @todo: Would something like this be cleaner with a $wrapper?
-        $entity->{$field_name}[$language][$delta]['fid'] = $new_id;
+        if (!empty($new_id)) {
+          $entity->{$field_name}[$language][$delta]['fid'] = $new_id;
+        }
       }
     }
   }
@@ -238,7 +244,9 @@ function oa_export_oa_import_field_taxonomy_term_reference(&$entity, $entity_typ
         // Import the file now.
         $new_id = oa_export_entity_import('taxonomy_term', $imports[$term_key], $term_key, $imports, $map);
         // Set the new file id.
-        $entity->{$field_name}[$language][$delta]['tid'] = $new_id;
+        if (!empty($new_id)) {
+          $entity->{$field_name}[$language][$delta]['tid'] = $new_id;
+        }
       }
     }
   }
