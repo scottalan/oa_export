@@ -184,11 +184,11 @@ function oa_export_generate_existing_module_form(&$form, &$form_state) {
     ),
   );
 
-  $form['generate_existing_module_form']['existing_module'] = array(
+  $form['generate_existing_module_form']['machine_name'] = array(
     '#title' => t('Name of module'),
     '#description' => t('This should be the <strong>machine_name</strong> of an existing module in your system'),
     '#type' => 'textfield',
-    '#default_value' => isset($form_state['input']['existing_module']) ? $form_state['input']['existing_module'] : '',
+    '#default_value' => isset($form_state['input']['machine_name']) ? $form_state['input']['machine_name'] : '',
     '#element_validate' => array('oa_export_existing_module_name_validate'),
   );
 
@@ -240,77 +240,78 @@ function oa_export_existing_module_name_validate($element, &$form_state, $form) 
  *   A keyed array containing the current state of the form.
  */
 function oa_export_generate_module_form_validate(&$form, &$form_state) {
-  if ($form_state['values']['choose'] == 'new') {
-    // New module
-    $module_name = $form_state['values']['machine_name'];
-    $module_path = !empty($form_state['values']['generate_path']) ? $form_state['values']['generate_path'] : OA_EXPORT_DEFAULT_MODULE_PATH;
-    $module_path = DRUPAL_ROOT . '/' . $module_path . '/' . $module_name;
-  }
-  else {
-    // Existing module
-    $module_name = $form_state['values']['existing_module'];
-    // The path to the existing module.
-    $module_path = DRUPAL_ROOT . '/' . drupal_get_path('module', $module_name);
-    if (empty($module_path)) {
-      form_set_error(NULL, t("Couldn't find that the @module module at @module_path. Does it exist?.", array(
-          '@module' => $module_name,
+  $module_name = $form_state['values']['machine_name'];
+
+  if (isset($module_name)) {
+    if ($form_state['values']['choose'] == 'new') {
+      $module_path = !empty($form_state['values']['generate_path']) ? $form_state['values']['generate_path'] : OA_EXPORT_DEFAULT_MODULE_PATH;
+      $module_path = DRUPAL_ROOT . '/' . $module_path . '/' . $module_name;
+    }
+    else {
+      // Existing module
+      // The path to the existing module.
+      $module_path = DRUPAL_ROOT . '/' . drupal_get_path('module', $module_name);
+      if (empty($module_path)) {
+        form_set_error(NULL, t("Couldn't find that the @module module at @module_path. Does it exist?.", array(
+            '@module' => $module_name,
+            '@module_path' => $module_path,
+          )
+        ));
+      }
+    }
+
+    $form['#module_name'] = $module_name;
+    $form['#module_path'] = $module_path;
+
+    // Try to create the oa_export directory.
+    $export_dir = oa_export_create_directories($module_path . '/' . OA_EXPORT_DIR);
+    // Set an error if we are unsuccessful.
+    if (!$export_dir) {
+      form_set_error(NULL, t("Couldn't create the @dir directory in @module_name at the path @module_path. Please check your permissions.", array(
+          '@dir' => OA_EXPORT_DIR,
+          '@module_name' => $module_name,
           '@module_path' => $module_path,
         )
       ));
     }
-  }
-
-  $form['#module_name'] = $module_name;
-  $form['#module_path'] = $module_path;
-
-  // Try to create the oa_export directory.
-  $export_dir = oa_export_create_directories($module_path . '/' . OA_EXPORT_DIR);
-  // Set an error if we are unsuccessful.
-  if (!$export_dir) {
-    form_set_error(NULL, t("Couldn't create the @dir directory in @module_name at the path @module_path. Please check your permissions.", array(
-        '@dir' => OA_EXPORT_DIR,
-        '@module_name' => $module_name,
-        '@module_path' => $module_path,
-      )
-    ));
-  }
-  else {
-    // Try to create the files directory.
-    $files_dir = oa_export_create_directories($export_dir . '/' . OA_EXPORT_FILES);
-    if (!$files_dir) {
-      form_set_error(NULL, t("Couldn't create a files directory in @dir for the module @module_name. Please check your permissions.", array(
-          '@module_name' => $module_name,
-          '@dir' => $_SESSION['oa_export']['files_directory'],
-        )
-      ));
-    }
     else {
-      // File types for a module that we need to update.
-      $file_types = array('module', 'info', 'install');
-      foreach ($file_types as $extension) {
-        $filename = $module_path . '/' . $module_name . '.' . $extension;
-        $form['#module_file'] = $filename;
-        if (file_exists($filename)) {
-          $success = oa_export_update_module_file($form, $form_state, $extension);
-          if (!$success) {
-            form_set_error(NULL, t("Couldn't update the contents of the @module_name.@extension file at the path @module_path. Please check your permissions.", array(
-                '@extension' => $extension,
-                '@module_name' => $_SESSION['oa_export']['module'],
-                '@module_path' => $module_path,
-              )
-            ));
+      // Try to create the files directory.
+      $files_dir = oa_export_create_directories($export_dir . '/' . OA_EXPORT_FILES);
+      if (!$files_dir) {
+        form_set_error(NULL, t("Couldn't create a files directory in @dir for the module @module_name. Please check your permissions.", array(
+            '@module_name' => $module_name,
+            '@dir' => $_SESSION['oa_export']['files_directory'],
+          )
+        ));
+      }
+      else {
+        // File types for a module that we need to update.
+        $file_types = array('module', 'info', 'install');
+        foreach ($file_types as $extension) {
+          $filename = $module_path . '/' . $module_name . '.' . $extension;
+          $form['#module_file'] = $filename;
+          if (file_exists($filename)) {
+            $success = oa_export_update_module_file($form, $form_state, $extension);
+            if (!$success) {
+              form_set_error(NULL, t("Couldn't update the contents of the @module_name.@extension file at the path @module_path. Please check your permissions.", array(
+                  '@extension' => $extension,
+                  '@module_name' => $_SESSION['oa_export']['module'],
+                  '@module_path' => $module_path,
+                )
+              ));
+            }
           }
-        }
-        else {
-          $success = oa_export_create_module_file($form, $form_state, $extension);
-          if (!$success) {
-            // Set a form error.
-            form_set_error(NULL, t("Couldn't create the @module_name.@extension file at the path @module_path. Please check your permissions.", array(
-                '@extension' => $extension,
-                '@module_name' => $module_name,
-                '@module_path' => $module_path,
-              )
-            ));
+          else {
+            $success = oa_export_create_module_file($form, $form_state, $extension);
+            if (!$success) {
+              // Set a form error.
+              form_set_error(NULL, t("Couldn't create the @module_name.@extension file at the path @module_path. Please check your permissions.", array(
+                  '@extension' => $extension,
+                  '@module_name' => $module_name,
+                  '@module_path' => $module_path,
+                )
+              ));
+            }
           }
         }
       }
